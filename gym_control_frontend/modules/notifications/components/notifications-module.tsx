@@ -12,12 +12,12 @@ import {
   useNotifications,
 } from "@/hooks/use-gym-query";
 import { useSessionStore } from "@/lib/session-store";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { NotificationFlow } from "@/modules/notifications/flows/notification-flow";
 import { EntityActionMenu } from "@/modules/action-system/components/entity-action-menu";
 import { useState } from "react";
 
-export function NotificationsModule({ role }: { role: Role }) {
+export function NotificationsModule({ role }: ModuleShellProps) {
   const notifications = useNotifications();
   const preferences = useNotificationPreferences();
   const markRead = useMarkNotificationRead();

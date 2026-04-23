@@ -3,9 +3,9 @@
 import { Activity, ArrowUpRight, Building2, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useActivities, useCheckins, useGyms, useRevenue } from "@/hooks/use-gym-query";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 
-export function DashboardModule({ role }: { role: Role }) {
+export function DashboardModule({ role }: ModuleShellProps) {
   const gyms = useGyms();
   const revenue = useRevenue();
   const checkins = useCheckins();

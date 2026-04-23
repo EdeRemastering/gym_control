@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { useUsers } from "@/hooks/use-gym-query";
 import { useCreateUser, useUpdateUser } from "@/hooks/use-gym-mutations";
 import { Button } from "@/components/ui/button";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import type { Role } from "@/lib/types";
 import { OnboardingFlow } from "@/modules/users/flows/onboarding-flow";
 import { BulkActionBar } from "@/modules/action-system/components/bulk-action-bar";
@@ -35,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function UsersModule({ role }: { role: Role }) {
+export function UsersModule({ role }: ModuleShellProps) {
   const users = useUsers();
   const list = users.data ?? [];
   const createUser = useCreateUser();

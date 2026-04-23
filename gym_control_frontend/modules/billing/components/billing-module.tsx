@@ -13,12 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { PaymentMembershipFlow } from "@/modules/billing/flows/payment-membership-flow";
 import { EntityActionMenu } from "@/modules/action-system/components/entity-action-menu";
 import { toast } from "sonner";
 
-export function BillingModule({ role }: { role: Role }) {
+export function BillingModule({ role }: ModuleShellProps) {
   const revenue = useRevenue();
   const plans = usePlans();
   const payments = usePayments();

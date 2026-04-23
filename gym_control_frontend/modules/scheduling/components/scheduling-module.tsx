@@ -6,12 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useCreateClass } from "@/hooks/use-gym-mutations";
 import { useClasses, useSchedule } from "@/hooks/use-gym-query";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { SchedulingFlow } from "@/modules/scheduling/flows/scheduling-flow";
 import { EntityActionMenu } from "@/modules/action-system/components/entity-action-menu";
 import { toast } from "sonner";
 
-export function SchedulingModule({ role }: { role: Role }) {
+export function SchedulingModule({ role }: ModuleShellProps) {
   const scheduleQuery = useSchedule();
   const classesQuery = useClasses();
   const createClass = useCreateClass();

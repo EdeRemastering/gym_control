@@ -3,10 +3,10 @@
 import { ActivitySquare, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useActivities, useCheckins, usePayments, useRevenue } from "@/hooks/use-gym-query";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { AnalyticsFlow } from "@/modules/analytics/flows/analytics-flow";
 
-export function AnalyticsModule({ role }: { role: Role }) {
+export function AnalyticsModule({ role }: ModuleShellProps) {
   const revenue = useRevenue();
   const payments = usePayments();
   const checkins = useCheckins();

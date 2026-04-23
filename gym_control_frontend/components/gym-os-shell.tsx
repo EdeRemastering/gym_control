@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Command, Plus, Search, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnalyticsModule } from "@/modules/analytics/components/analytics-module";
 import { BillingModule } from "@/modules/billing/components/billing-module";
@@ -16,8 +16,10 @@ import { NotificationsModule } from "@/modules/notifications/components/notifica
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { useSessionStore } from "@/lib/session-store";
 import { moduleLabels, roleModules, type ModuleKey } from "@/lib/navigation";
+import { useProfileNavStore } from "@/lib/profile-nav-store";
 
 export function GymControlShell() {
   const router = useRouter();
@@ -29,8 +31,11 @@ export function GymControlShell() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
+  const prevModuleRef = useRef<ModuleKey>(activeModule);
 
   const allowedModules = useMemo(() => roleModules[role], [role]);
+  const requestProfileFocus = useProfileNavStore((state) => state.requestProfileFocus);
+  const clearProfileFocus = useProfileNavStore((state) => state.clearProfileFocus);
 
   const CurrentModule = {
     dashboard: DashboardModule,
@@ -70,6 +75,28 @@ export function GymControlShell() {
     setCommandOpen(false);
     setQuickOpen(false);
   }
+
+  const onOpenMemberProfile = useCallback(
+    (userId: string) => {
+      requestProfileFocus(userId);
+      if (allowedModules.includes("profile")) {
+        setActiveModule("profile");
+      }
+    },
+    [allowedModules, requestProfileFocus],
+  );
+
+  const moduleShellProps: ModuleShellProps = useMemo(
+    () => ({ role, onOpenMemberProfile }),
+    [role, onOpenMemberProfile],
+  );
+
+  useEffect(() => {
+    if (prevModuleRef.current === "profile" && activeModule !== "profile") {
+      clearProfileFocus();
+    }
+    prevModuleRef.current = activeModule;
+  }, [activeModule, clearProfileFocus]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -161,7 +188,7 @@ export function GymControlShell() {
             transition={{ duration: 0.25 }}
             className="flex-1"
           >
-            <CurrentModule role={role} />
+            <CurrentModule {...moduleShellProps} />
           </motion.div>
         </AnimatePresence>
       </section>

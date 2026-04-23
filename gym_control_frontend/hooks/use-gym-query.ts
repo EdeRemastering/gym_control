@@ -176,6 +176,31 @@ export const useSocialPosts = () => {
   });
 };
 
+/** Publicaciones de un autor concreto (filtra el listado del gimnasio). */
+export const useSocialPostsByUserId = (targetUserId: string | null) => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  const viewerId = useSessionStore((state) => state.user?.id);
+  return useQuery({
+    queryKey: ["socialPosts", "byUser", gymId, viewerId, targetUserId],
+    queryFn: async () => {
+      const all = await api.socialPosts(gymId!, token!, viewerId, "all");
+      return all
+        .filter((p) => p.userId === targetUserId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    enabled: enabled && Boolean(viewerId) && Boolean(targetUserId),
+  });
+};
+
+export const useProfileMediaPostsForUser = (targetUserId: string | null) => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["profileMediaPosts", gymId, "peer", targetUserId],
+    queryFn: () => api.profileMediaPosts(gymId!, token!, targetUserId!),
+    enabled: enabled && Boolean(targetUserId),
+  });
+};
+
 export const useMySocialPosts = () => {
   const { token, gymId, enabled } = useSessionRequirements();
   const userId = useSessionStore((state) => state.user?.id);

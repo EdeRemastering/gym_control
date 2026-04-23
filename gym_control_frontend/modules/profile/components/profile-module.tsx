@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Camera, Pencil, Send, Upload } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Camera, Pencil, Send, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,11 +10,14 @@ import {
   useMyProfileMediaPosts,
   useMySocialPosts,
   usePayments,
+  useProfileMediaPostsForUser,
+  useSocialPostsByUserId,
   useWorkoutSessions,
 } from "@/hooks/use-gym-query";
 import { useCreateProfileMediaPost, useCreateSocialPost } from "@/hooks/use-gym-mutations";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
+import { useProfileNavStore } from "@/lib/profile-nav-store";
 import { useSessionStore } from "@/lib/session-store";
-import type { Role } from "@/lib/types";
 import { ProfileFlow } from "@/modules/profile/flows/profile-flow";
 import {
   Dialog,
@@ -31,8 +34,34 @@ interface EditableProfile {
   avatarUrl: string;
 }
 
-export function ProfileModule({ role }: { role: Role }) {
+export function ProfileModule({ role }: ModuleShellProps) {
   const user = useSessionStore((state) => state.user);
+  const profileFocusUserId = useProfileNavStore((state) => state.profileFocusUserId);
+  const clearProfileFocus = useProfileNavStore((state) => state.clearProfileFocus);
+  const isPeerProfile = Boolean(
+    user?.id && profileFocusUserId && profileFocusUserId !== user.id,
+  );
+  const peerPostsQuery = useSocialPostsByUserId(isPeerProfile ? profileFocusUserId : null);
+  const peerMediaQuery = useProfileMediaPostsForUser(isPeerProfile ? profileFocusUserId : null);
+  const peerTimeline = useMemo(() => {
+    if (!isPeerProfile || !profileFocusUserId) return [];
+    const social = (peerPostsQuery.data ?? []).map((p) => ({
+      id: p.id,
+      content: p.content,
+      mediaUrl: p.mediaUrl ?? undefined,
+      createdAt: p.createdAt,
+    }));
+    const media = (peerMediaQuery.data ?? []).map((post) => ({
+      id: `profile-${post.id}`,
+      content: post.caption ?? "Publicación de perfil",
+      mediaUrl: post.mediaUrl,
+      createdAt: post.createdAt,
+    }));
+    return [...social, ...media].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [isPeerProfile, profileFocusUserId, peerPostsQuery.data, peerMediaQuery.data]);
+
   const workouts = useWorkoutSessions();
   const payments = usePayments();
   const myPostsQuery = useMySocialPosts();
@@ -104,6 +133,125 @@ export function ProfileModule({ role }: { role: Role }) {
     });
     setPostForm({ content: "", mediaUrl: "", alsoShareInSocial: false });
     toast.success("Publicación creada solo en tu perfil");
+  }
+
+  if (isPeerProfile && profileFocusUserId) {
+    const peerInitials =
+      profileFocusUserId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "GC";
+    const latestPost = peerTimeline[0];
+    const morePosts = peerTimeline.slice(1, 8);
+    const peerLoading = peerPostsQuery.isPending || peerMediaQuery.isPending;
+
+    return (
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-white/80 hover:text-white"
+            onClick={() => clearProfileFocus()}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Volver a mi perfil
+          </Button>
+        </div>
+
+        <Card className="lg:col-span-2 overflow-hidden p-0">
+          <div className="h-28 bg-gradient-to-r from-zinc-800 to-zinc-900" />
+          <div className="p-4">
+            <div className="-mt-10 flex items-center gap-3">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[var(--border)] bg-zinc-800 text-lg font-semibold text-white">
+                {peerInitials}
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-white">Miembro del gimnasio</p>
+                <p className="text-xs text-[var(--muted)]">@{profileFocusUserId}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">
+              Vista desde el área social. Rol que navega: {role}.
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-sm text-[var(--muted)]">Resumen</p>
+          <div className="mt-3 space-y-2 text-sm text-white">
+            <p>Publicaciones visibles: {peerTimeline.length}</p>
+            {peerLoading ? <p className="text-xs text-[var(--muted)]">Cargando…</p> : null}
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <p className="text-sm font-medium text-white">Última publicación</p>
+          <p className="mt-0.5 text-xs text-[var(--muted)]">
+            Lo más reciente entre el feed social y las publicaciones de perfil con imagen.
+          </p>
+          {peerLoading && !latestPost ? (
+            <p className="mt-4 rounded-lg border border-[var(--border)] bg-white/5 p-4 text-sm text-[var(--muted)]">
+              Cargando publicaciones…
+            </p>
+          ) : null}
+          {!peerLoading && !latestPost ? (
+            <p className="mt-4 rounded-lg border border-[var(--border)] bg-white/5 p-4 text-sm text-[var(--muted)]">
+              Este miembro aún no tiene publicaciones visibles en el gimnasio.
+            </p>
+          ) : null}
+          {latestPost ? (
+            <article className="mt-4 overflow-hidden rounded-xl border border-[var(--border)] bg-white/5">
+              {latestPost.mediaUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={latestPost.mediaUrl}
+                  alt="Última publicación"
+                  className="max-h-[min(420px,70vh)] w-full object-cover"
+                />
+              ) : null}
+              <div className="p-3">
+                <p className="text-xs text-[var(--muted)]">
+                  {new Date(latestPost.createdAt).toLocaleString()}
+                </p>
+                <p className="mt-2 text-sm text-white">{latestPost.content}</p>
+              </div>
+            </article>
+          ) : null}
+        </Card>
+
+        {morePosts.length > 0 ? (
+          <Card className="lg:col-span-3">
+            <p className="text-sm text-[var(--muted)]">Publicaciones anteriores</p>
+            <div className="mt-3 space-y-2">
+              {morePosts.map((post) => (
+                <article
+                  key={post.id}
+                  className="overflow-hidden rounded-lg border border-[var(--border)] bg-white/5"
+                >
+                  {post.mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={post.mediaUrl}
+                      alt=""
+                      className="h-32 w-full object-cover"
+                    />
+                  ) : null}
+                  <div className="p-2">
+                    <p className="text-xs text-[var(--muted)]">
+                      {new Date(post.createdAt).toLocaleString()}
+                    </p>
+                    <p className="mt-1 text-sm text-white">{post.content}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </Card>
+        ) : null}
+
+        <div className="lg:col-span-3">
+          <ProfileFlow />
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -30,7 +30,7 @@ import {
   useRoutines,
 } from "@/hooks/use-gym-query";
 import { useSessionStore } from "@/lib/session-store";
-import type { Role } from "@/lib/types";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { TrainingExecutionFlow } from "@/modules/training/flows/training-execution-flow";
 import { EntityActionMenu } from "@/modules/action-system/components/entity-action-menu";
 import { toast } from "sonner";
@@ -133,7 +133,7 @@ function getExerciseContext(
   };
 }
 
-export function TrainingModule({ role }: { role: Role }) {
+export function TrainingModule({ role }: ModuleShellProps) {
   const exercises = useExercises();
   const routines = useRoutines();
   const createRoutine = useCreateRoutine();
