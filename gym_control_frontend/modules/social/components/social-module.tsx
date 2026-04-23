@@ -2,10 +2,21 @@
 
 import { FormEvent, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Heart, ImageIcon, MessageCircle, Pencil, PlusSquare, Trash2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { es as esLocale } from "date-fns/locale";
+import {
+  Heart,
+  ImageIcon,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  PlusSquare,
+  SendHorizontal,
+  Share2,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,14 +35,31 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   useCreateSocialComment,
   useCreateSocialPost,
   useLikeSocialPost,
 } from "@/hooks/use-gym-mutations";
 import { useSocialPosts } from "@/hooks/use-gym-query";
+import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { useSessionStore } from "@/lib/session-store";
-import type { Role } from "@/lib/types";
+import type { SocialPost } from "@/lib/types";
 import { SocialFlow } from "@/modules/social/flows/social-flow";
+
+function shareSocialPostToWhatsApp(post: SocialPost, displayContent: string) {
+  const body = displayContent.trim().slice(0, 3500);
+  const parts = ["📣 Gym Control — Área social", "", body];
+  if (post.mediaUrl) parts.push("", post.mediaUrl);
+  parts.push("", `— ${new Date(post.createdAt).toLocaleString("es")}`);
+  const url = `https://wa.me/?text=${encodeURIComponent(parts.join("\n"))}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 interface LocalCommentItem {
   id: string;
@@ -40,7 +68,7 @@ interface LocalCommentItem {
   persisted: boolean;
 }
 
-export function SocialModule({ role }: { role: Role }) {
+export function SocialModule({ role, onOpenMemberProfile }: ModuleShellProps) {
   const currentUser = useSessionStore((state) => state.user);
   const posts = useSocialPosts();
   const createPost = useCreateSocialPost();
@@ -225,15 +253,61 @@ export function SocialModule({ role }: { role: Role }) {
   const visibleFeedPosts = sortedPosts.filter((post) => !hiddenPosts.includes(post.id));
   const pendingRemovePost = visibleFeedPosts.find((post) => post.id === pendingRemovePostId) ?? null;
 
+  const storyUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (currentUser?.id) ids.add(currentUser.id);
+    visibleFeedPosts.forEach((p) => ids.add(p.userId));
+    return Array.from(ids).slice(0, 14);
+  }, [visibleFeedPosts, currentUser]);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <Card className="lg:col-span-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-[var(--muted)]">Feed social Gym Control</p>
-          <span className="text-xs text-[var(--muted)]">Rol: {role}</span>
-        </div>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(260px,300px)]">
+      <div className="min-w-0 rounded-2xl border border-white/[0.08] bg-[#050505]/95 p-4 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] md:p-5">
+        <header className="flex items-start justify-between gap-3 border-b border-white/[0.06] pb-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/45">Feed</p>
+            <h2 className="text-lg font-semibold tracking-tight text-white">Social Gym</h2>
+            <p className="mt-0.5 text-xs text-white/50">Publicaciones del gimnasio · rol {role}</p>
+          </div>
+        </header>
+
+        {storyUserIds.length > 0 ? (
+          <div className="mt-4 rounded-2xl border border-white/[0.08] bg-black/40 px-3 py-3">
+            <p className="mb-3 px-1 text-[11px] font-medium uppercase tracking-wide text-white/40">
+              Miembros activos
+            </p>
+            <div className="flex gap-4 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {storyUserIds.map((userId) => {
+                const isSelf = currentUser?.id === userId;
+                const initials = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase() || "GC";
+                const label = isSelf ? "Tú" : userId.slice(0, 8);
+                return (
+                  <button
+                    key={userId}
+                    type="button"
+                    onClick={() => onOpenMemberProfile?.(userId)}
+                    className="group flex shrink-0 flex-col items-center gap-1.5 rounded-xl border border-transparent p-1 text-left transition hover:border-white/10 hover:bg-white/[0.04] focus-visible:border-[var(--primary)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/30"
+                    aria-label={isSelf ? "Ver tu perfil y última publicación" : `Ver perfil de ${userId} y su última publicación`}
+                  >
+                    <div className="rounded-full bg-gradient-to-tr from-fuchsia-500 via-orange-400 to-yellow-300 p-[2px] transition group-hover:brightness-110">
+                      <div className="rounded-full bg-black p-[2px]">
+                        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">
+                          {initials}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="max-w-[4.25rem] truncate text-center text-[11px] text-white/65 group-hover:text-white/85">
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
         <form
-          className="mt-3 rounded-2xl border border-[var(--border)] bg-white/[0.03] p-3"
+          className="mt-4 rounded-2xl border border-white/[0.08] bg-black/35 p-3 md:p-4"
           onSubmit={onCreatePost}
         >
           <textarea
@@ -245,75 +319,150 @@ export function SocialModule({ role }: { role: Role }) {
                 void submitPost();
               }
             }}
-            className="w-full rounded-lg border border-[var(--border)] bg-white/5 p-2 text-sm text-white"
+            className="w-full resize-none rounded-xl border border-white/[0.08] bg-black/50 px-3 py-2.5 text-sm leading-relaxed text-white outline-none ring-0 placeholder:text-white/35 focus:border-[var(--primary)]/50 focus:ring-1 focus:ring-[var(--primary)]/30"
             placeholder="¿Qué entrenaste hoy?"
             rows={3}
           />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Button type="submit" size="sm" loading={createPost.isPending}>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="submit"
+              size="sm"
+              loading={createPost.isPending}
+              className="rounded-full px-4"
+            >
               <PlusSquare className="h-4 w-4" />
-              Publicar texto
+              Publicar
             </Button>
-            <Button type="button" size="sm" variant="secondary" onClick={onCreateDemoPost}>
+            <Button type="button" size="sm" variant="secondary" className="rounded-full" onClick={onCreateDemoPost}>
               <ImageIcon className="h-4 w-4" />
-              Crear post demo con foto
+              Demo con foto
             </Button>
           </div>
         </form>
-        <div className="mt-4 space-y-3">
-          {visibleFeedPosts
-            .slice(0, visiblePosts)
-            .map((post) => (
-            <article key={post.id} className="rounded-2xl border border-[var(--border)] bg-white/[0.04] p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--primary)]/20 text-xs font-semibold text-[var(--primary)]">
+
+        <div className="mt-5 space-y-4">
+          {visibleFeedPosts.slice(0, visiblePosts).map((post) => (
+            <article
+              key={post.id}
+              className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black/30"
+            >
+              <div className="flex items-start gap-3 border-b border-white/[0.06] px-3 py-3 md:px-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-semibold text-white">
                   {post.userId.slice(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Miembro Gym Control</p>
-                  <p className="text-[11px] text-[var(--muted)]">
-                    {new Date(post.createdAt).toLocaleString()}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">Miembro Gym Control</p>
+                      <p className="truncate text-xs text-white/45">
+                        @{post.userId.slice(0, 10)}
+                        {post.userId.length > 10 ? "…" : ""}
+                        <span className="text-white/30"> · </span>
+                        <time className="text-white/45" dateTime={post.createdAt}>
+                          {formatDistanceToNow(new Date(post.createdAt), {
+                            addSuffix: true,
+                            locale: esLocale,
+                          })}
+                        </time>
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-full p-1.5 text-white/45 outline-none transition hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-[var(--primary)]/40"
+                          aria-label="Más opciones de la publicación"
+                        >
+                          <MoreHorizontal className="h-5 w-5" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            shareSocialPostToWhatsApp(
+                              post,
+                              normalizeSocialText(editedContentByPost[post.id] ?? post.content),
+                            )
+                          }
+                        >
+                          <Share2 className="h-4 w-4 shrink-0" />
+                          Compartir en WhatsApp
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onSelect={() =>
+                            openEditor(
+                              post.id,
+                              normalizeSocialText(editedContentByPost[post.id] ?? post.content),
+                            )
+                          }
+                        >
+                          <Pencil className="h-4 w-4 shrink-0" />
+                          Editar publicación
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-rose-300 focus:bg-rose-500/15 focus:text-rose-200"
+                          onSelect={() => setPendingRemovePostId(post.id)}
+                        >
+                          <Trash2 className="h-4 w-4 shrink-0" />
+                          Quitar del feed
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-white">
-                {normalizeSocialText(editedContentByPost[post.id] ?? post.content)}
-              </p>
-              {post.mediaUrl ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-[var(--border)]">
-                  <Image
-                    src={post.mediaUrl}
-                    alt="media post"
-                    width={800}
-                    height={420}
-                    className="h-64 w-full object-cover"
-                  />
+
+              <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
+                <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-white/95">
+                  {normalizeSocialText(editedContentByPost[post.id] ?? post.content)}
+                </p>
+                {post.mediaUrl ? (
+                  <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-black">
+                    <Image
+                      src={post.mediaUrl}
+                      alt="Contenido de la publicación"
+                      width={800}
+                      height={420}
+                      className="max-h-[min(420px,70vh)] w-full object-cover"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="flex items-center gap-1 border-t border-white/[0.06] pt-3">
+                  <button
+                    type="button"
+                    disabled={isLoadingLike[post.id]}
+                    className={
+                      isLoadingLike[post.id]
+                        ? "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-indigo-200"
+                        : (localLikeState[post.id] ?? post.isLiked)
+                          ? "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-rose-300 hover:bg-rose-500/10"
+                          : "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-white/50 hover:bg-white/5 hover:text-white"
+                    }
+                    onClick={() =>
+                      void toggleLike(post.id, Boolean(post.isLiked), Number(post.likeCount ?? 0))
+                    }
+                  >
+                    <Heart
+                      className={`h-[18px] w-[18px] ${
+                        (localLikeState[post.id] ?? post.isLiked) ? "fill-current" : ""
+                      }`}
+                    />
+                    <span className="tabular-nums">{localLikes[post.id] ?? post.likeCount ?? 0}</span>
+                  </button>
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm text-white/45">
+                    <MessageCircle className="h-[18px] w-[18px]" />
+                    {new Set(
+                      [
+                        ...(post.comments ?? []).filter((c) => !c.parentId),
+                        ...(localComments[post.id] ?? []).filter((c) => !c.parentId),
+                      ].map((c) => c.id),
+                    ).size}
+                  </span>
                 </div>
-              ) : null}
-              <div className="mt-3 flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={isLoadingLike[post.id]}
-                  className={
-                    isLoadingLike[post.id]
-                      ? "bg-indigo-500/20 text-indigo-200"
-                      : (localLikeState[post.id] ?? post.isLiked)
-                        ? "bg-rose-500/20 text-rose-200"
-                        : "bg-white/5 text-[var(--muted)]"
-                  }
-                  onClick={() =>
-                    void toggleLike(post.id, Boolean(post.isLiked), Number(post.likeCount ?? 0))
-                  }
-                >
-                  <Heart
-                    className={`h-4 w-4 ${
-                      (localLikeState[post.id] ?? post.isLiked) ? "fill-current" : ""
-                    }`}
-                  />
-                  {localLikes[post.id] ?? post.likeCount ?? 0}
-                </Button>
-                <div className="flex flex-1 items-center gap-2">
+
+                <div className="flex items-end gap-2 rounded-xl border border-white/[0.06] bg-black/40 p-2">
                   <textarea
                     value={commentByPost[post.id] ?? ""}
                     onChange={(event) =>
@@ -328,132 +477,125 @@ export function SocialModule({ role }: { role: Role }) {
                         void submitComment(post.id);
                       }
                     }}
-                    className="flex-1 rounded-lg border border-[var(--border)] bg-black/20 p-2 text-xs text-white"
-                    placeholder="Comentar..."
+                    className="min-h-[40px] flex-1 resize-none bg-transparent px-1 py-1.5 text-sm text-white outline-none placeholder:text-white/35"
+                    placeholder="Añade un comentario…"
                     rows={2}
                   />
                   <Button
+                    type="button"
                     size="sm"
                     variant="secondary"
+                    className="shrink-0 rounded-full px-3"
                     onClick={() => void submitComment(post.id)}
                   >
-                    <MessageCircle className="h-4 w-4" />
+                    <SendHorizontal className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
-              <footer className="mt-3 flex items-center justify-end gap-1 border-t border-[var(--border)] pt-2">
-                <button
-                  type="button"
-                  title="Editar"
-                  aria-label="Editar publicación"
-                  className="rounded-lg p-2 text-[var(--muted)] transition hover:bg-white/10 hover:text-white"
-                  onClick={() =>
-                    openEditor(post.id, normalizeSocialText(editedContentByPost[post.id] ?? post.content))
-                  }
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  title="Quitar"
-                  aria-label="Quitar publicación"
-                  className="rounded-lg p-2 text-[var(--muted)] transition hover:bg-white/10 hover:text-[var(--danger)]"
-                  onClick={() => {
-                    setPendingRemovePostId(post.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </footer>
+
               {((post.comments ?? []).length > 0 || (localComments[post.id] ?? []).length > 0) ? (
-                <div className="mt-2 max-h-72 space-y-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-black/20 p-2 pr-1">
-                  {[
-                    ...(post.comments ?? []).map((comment) => ({
-                      id: comment.id,
-                      content: comment.content,
-                      parentId: comment.parentId ?? null,
-                      persisted: true,
-                    })),
-                    ...(localComments[post.id] ?? []),
-                  ]
-                    .filter((comment) => !comment.parentId)
-                    .map((comment) => (
-                      <div key={comment.id} className="space-y-1 rounded-md bg-white/5 p-2">
-                        <p className="text-xs text-white/90">
-                          <span className="mr-1 text-[var(--muted)]">usuario:</span>
-                          {normalizeSocialText(comment.content)}
-                        </p>
-                        <button
-                          type="button"
-                          className="text-[10px] text-indigo-300 hover:text-indigo-200"
-                          onClick={() =>
-                            setReplyingToByPost((prev) => ({ ...prev, [post.id]: comment.id }))
-                          }
+                <div className="border-t border-white/[0.06] bg-black/25 px-3 py-3 md:px-4">
+                  <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-white/40">Comentarios</p>
+                  <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    {[
+                      ...(post.comments ?? []).map((comment) => ({
+                        id: comment.id,
+                        content: comment.content,
+                        parentId: comment.parentId ?? null,
+                        persisted: true,
+                      })),
+                      ...(localComments[post.id] ?? []),
+                    ]
+                      .filter((comment) => !comment.parentId)
+                      .map((comment) => (
+                        <div
+                          key={comment.id}
+                          className="rounded-xl border border-white/[0.06] bg-black/35 p-3"
                         >
-                          Responder
-                        </button>
-                        {replyingToByPost[post.id] === comment.id ? (
-                          <div className="mt-1 flex items-center gap-2">
-                            <textarea
-                              value={replyByCommentId[comment.id] ?? ""}
-                              onChange={(event) =>
-                                setReplyByCommentId((prev) => ({
-                                  ...prev,
-                                  [comment.id]: event.target.value,
-                                }))
-                              }
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter" && !event.shiftKey) {
-                                  event.preventDefault();
-                                  void submitReply(post.id, comment.id);
+                          <p className="text-sm leading-relaxed text-white/90">
+                            <span className="mr-1.5 font-semibold text-[var(--primary)]">@miembro</span>
+                            {normalizeSocialText(comment.content)}
+                          </p>
+                          <button
+                            type="button"
+                            className="mt-2 text-xs font-medium text-[var(--primary)]/90 hover:text-[var(--primary)]"
+                            onClick={() =>
+                              setReplyingToByPost((prev) => ({ ...prev, [post.id]: comment.id }))
+                            }
+                          >
+                            Responder
+                          </button>
+                          {replyingToByPost[post.id] === comment.id ? (
+                            <div className="mt-2 flex items-end gap-2 rounded-lg border border-white/[0.06] bg-black/40 p-2">
+                              <textarea
+                                value={replyByCommentId[comment.id] ?? ""}
+                                onChange={(event) =>
+                                  setReplyByCommentId((prev) => ({
+                                    ...prev,
+                                    [comment.id]: event.target.value,
+                                  }))
                                 }
-                              }}
-                              rows={2}
-                              className="flex-1 rounded-lg border border-[var(--border)] bg-black/30 p-2 text-xs text-white"
-                              placeholder="Responder comentario..."
-                            />
-                            <Button size="sm" variant="secondary" onClick={() => void submitReply(post.id, comment.id)}>
-                              <MessageCircle className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : null}
-                        {[
-                          ...(post.comments ?? []).map((reply) => ({
-                            id: reply.id,
-                            content: reply.content,
-                            parentId: reply.parentId ?? null,
-                            persisted: true,
-                          })),
-                          ...(localComments[post.id] ?? []),
-                        ]
-                          .filter((reply) => reply.parentId === comment.id)
-                          .map((reply) => (
-                            <div key={reply.id} className="ml-4 rounded-md border border-[var(--border)] bg-black/20 p-2">
-                              <p className="text-xs text-white/90">
-                                <span className="mr-1 text-[var(--muted)]">respuesta:</span>
-                                {normalizeSocialText(reply.content)}
-                              </p>
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" && !event.shiftKey) {
+                                    event.preventDefault();
+                                    void submitReply(post.id, comment.id);
+                                  }
+                                }}
+                                rows={2}
+                                className="min-h-[36px] flex-1 resize-none bg-transparent text-xs text-white outline-none placeholder:text-white/35"
+                                placeholder="Escribe una respuesta…"
+                              />
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="shrink-0 rounded-full px-2.5"
+                                onClick={() => void submitReply(post.id, comment.id)}
+                              >
+                                <SendHorizontal className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
-                          ))}
-                      </div>
-                    ))}
+                          ) : null}
+                          {[
+                            ...(post.comments ?? []).map((reply) => ({
+                              id: reply.id,
+                              content: reply.content,
+                              parentId: reply.parentId ?? null,
+                              persisted: true,
+                            })),
+                            ...(localComments[post.id] ?? []),
+                          ]
+                            .filter((reply) => reply.parentId === comment.id)
+                            .map((reply) => (
+                              <div
+                                key={reply.id}
+                                className="mt-2 ml-1 rounded-lg border-l-2 border-[var(--primary)]/40 bg-white/[0.03] py-2 pl-3 pr-2"
+                              >
+                                <p className="text-xs leading-relaxed text-white/85">
+                                  <span className="mr-1 text-white/40">↳</span>
+                                  {normalizeSocialText(reply.content)}
+                                </p>
+                              </div>
+                            ))}
+                        </div>
+                      ))}
+                  </div>
                 </div>
               ) : null}
             </article>
           ))}
-          {visiblePosts < sortedPosts.length ? (
-            <Button
-              variant="ghost"
-              className="w-full"
+          {visiblePosts < visibleFeedPosts.length ? (
+            <button
+              type="button"
+              className="w-full rounded-full border border-white/[0.1] bg-transparent py-2.5 text-sm font-medium text-[var(--primary)] transition hover:bg-[var(--primary)]/10"
               onClick={() => setVisiblePosts((prev) => prev + 6)}
             >
               Ver más publicaciones
-            </Button>
+            </button>
           ) : null}
         </div>
-      </Card>
+      </div>
 
-      <div className="lg:col-span-3">
+      <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <SocialFlow />
       </div>
 
