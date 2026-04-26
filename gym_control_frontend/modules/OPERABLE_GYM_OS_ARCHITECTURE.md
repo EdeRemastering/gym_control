@@ -1,4 +1,4 @@
-# Gym OS SaaS Operable Architecture
+# Zudel OS SaaS Operable Architecture
 
 ## Principio rector
 

@@ -10,7 +10,7 @@ export function Card({
   return (
     <article
       className={cn(
-        "rounded-2xl border border-[var(--border)] bg-[var(--card)]/90 p-4 backdrop-blur-md transition hover:border-[#3b4d66]",
+        "rounded-2xl border border-[var(--border)] bg-[var(--card)]/90 p-4 backdrop-blur-md transition hover:border-[color-mix(in_srgb,var(--border)_65%,var(--primary)_35%)]",
         className,
       )}
     >

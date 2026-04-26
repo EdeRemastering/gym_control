@@ -28,13 +28,13 @@ export const roleModules: Record<Role, ModuleKey[]> = {
 };
 
 export const moduleLabels: Record<ModuleKey, string> = {
-  dashboard: "Centro de control",
-  billing: "Flujo financiero",
-  training: "Entrenamiento en vivo",
-  scheduling: "Agenda inteligente",
-  users: "Usuarios y roles",
-  analytics: "Laboratorio de insights",
-  profile: "Perfil dinámico",
-  social: "Área social",
-  notifications: "Centro de alertas",
+  dashboard: "Resumen del gimnasio",
+  billing: "Pagos y cobros",
+  training: "Entrenamientos",
+  scheduling: "Agenda de clases",
+  users: "Clientes y accesos",
+  analytics: "Analisis del negocio",
+  profile: "Mi perfil",
+  social: "Comunidad",
+  notifications: "Notificaciones",
 };

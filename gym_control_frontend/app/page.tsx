@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { GymControlShell } from "@/components/gym-os-shell";
+import { ZudelOsShell } from "@/components/zudel-os-shell";
 import { useSessionStore } from "@/lib/session-store";
 
 export default function Home() {
@@ -16,5 +16,5 @@ export default function Home() {
   }, [router, token]);
 
   if (!token) return null;
-  return <GymControlShell />;
+  return <ZudelOsShell />;
 }

@@ -1,14 +1,21 @@
 import { apiRequest } from "@/lib/api/client";
 import type {
+  AuditLogEntry,
   AuthResponse,
+  ClassSchedule,
   ClassSession,
   Checkin,
+  Discount,
   Exercise,
   FitnessClass,
+  Food,
   Gym,
+  MediaComment,
+  MediaLike,
+  MealFood,
+  Membership,
   Payment,
   Plan,
-  RevenuePoint,
   SocialComment,
   SocialPost,
   Routine,
@@ -23,81 +30,6 @@ import type {
   User,
   WorkoutSession,
 } from "@/lib/types";
-
-const mockGyms: Gym[] = [
-  { id: "g1", name: "Gym Control Downtown", members: 412, activeClasses: 19 },
-];
-
-const mockUsers: User[] = [
-  {
-    id: "u1",
-    name: "Sofía Trainer",
-    email: "sofia@gymcontrol.app",
-    role: "TRAINER",
-    membershipStatus: "ACTIVE",
-  },
-  {
-    id: "u2",
-    name: "Mario Client",
-    email: "mario@gymcontrol.app",
-    role: "CLIENT",
-    membershipStatus: "TRIAL",
-  },
-];
-
-const mockRevenue: RevenuePoint[] = [
-  { label: "Lun", value: 580 },
-  { label: "Mar", value: 620 },
-  { label: "Mie", value: 540 },
-  { label: "Jue", value: 710 },
-  { label: "Vie", value: 930 },
-  { label: "Sab", value: 640 },
-];
-
-const mockSchedule: ClassSession[] = [
-  {
-    id: "c1",
-    title: "HIIT Performance",
-    trainer: "Sofía",
-    startsAt: "08:00",
-    endsAt: "09:00",
-    occupancy: 86,
-  },
-  {
-    id: "c2",
-    title: "Mobility Recovery",
-    trainer: "Rafa",
-    startsAt: "18:30",
-    endsAt: "19:15",
-    occupancy: 52,
-  },
-];
-
-const mockTraining: TrainingSet[] = [
-  { id: "s1", exercise: "Back Squat", reps: 8, weight: 95, done: true },
-  { id: "s2", exercise: "Bench Press", reps: 10, weight: 62.5, done: false },
-  { id: "s3", exercise: "Deadlift", reps: 5, weight: 120, done: false },
-];
-
-async function withFallback<T>(request: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await request();
-  } catch {
-    return fallback;
-  }
-}
-
-const mockSocialPosts: SocialPost[] = [
-  {
-    id: "p1",
-    userId: "u1",
-    content: "Sesion de tren superior completa. Cerre 4 series de press con muy buena tecnica.",
-    createdAt: new Date().toISOString(),
-    likeCount: 4,
-    isLiked: false,
-    comments: [],
-  },
-];
 
 export const api = {
   auth: {
@@ -114,12 +46,17 @@ export const api = {
         },
       ),
   },
-  gyms: (token: string) => withFallback(() => apiRequest<Gym[]>("/gyms", { token }), mockGyms),
+  gyms: async (token: string) => {
+    const gyms = await apiRequest<Array<{ id: string; name: string }>>("/gyms", { token });
+    return gyms.map((gym) => ({
+      id: gym.id,
+      name: gym.name,
+      members: 0,
+      activeClasses: 0,
+    })) as Gym[];
+  },
   users: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<User[]>(`/gyms/${gymId}/users`, { gymId, token }),
-      mockUsers,
-    ),
+    apiRequest<User[]>(`/gyms/${gymId}/users`, { gymId, token }),
   createUser: (
     gymId: string,
     token: string,
@@ -144,10 +81,7 @@ export const api = {
       body: payload,
     }),
   plans: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<Plan[]>(`/gyms/${gymId}/billing/plans`, { gymId, token }),
-      [],
-    ),
+    apiRequest<Plan[]>(`/gyms/${gymId}/billing/plans`, { gymId, token }),
   createPlan: (
     gymId: string,
     token: string,
@@ -180,18 +114,11 @@ export const api = {
       },
     ),
   memberships: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<Array<{ id: string; status: string }>>(`/gyms/${gymId}/billing/memberships`, { gymId, token }),
-      [],
-    ),
+    apiRequest<Membership[]>(`/gyms/${gymId}/billing/memberships`, { gymId, token }),
   payments: (gymId: string, token: string) =>
-    withFallback(
-      () =>
-        apiRequest<Payment[]>(
-          `/gyms/${gymId}/billing/payments`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<Payment[]>(
+      `/gyms/${gymId}/billing/payments`,
+      { gymId, token },
     ),
   createPayment: (
     gymId: string,
@@ -213,48 +140,60 @@ export const api = {
       token,
       body: payload,
     }),
-  revenue: (gymId: string, token: string) =>
-    withFallback(
-      async () => {
-        const payments = await apiRequest<Array<{ createdAt: string; finalAmount: number }>>(
-          `/gyms/${gymId}/billing/payments`,
-          { gymId, token },
-        );
-        return payments.slice(0, 6).map((payment, index) => ({
-          label: `D${index + 1}`,
-          value: Number(payment.finalAmount ?? 0),
-        }));
-      },
-      mockRevenue,
-    ),
-  schedule: (gymId: string, token: string) =>
-    withFallback(
-      async () => {
-        const sessions = await apiRequest<
-          Array<{
-            id: string;
-            startTime: string;
-            endTime: string;
-            classRef?: { name?: string; trainer?: { name?: string } };
-          }>
-        >(`/gyms/${gymId}/scheduling/sessions`, { gymId, token });
+  discounts: (gymId: string, token: string) =>
+    apiRequest<Discount[]>(`/gyms/${gymId}/billing/discounts`, { gymId, token }),
+  createDiscount: (
+    gymId: string,
+    token: string,
+    payload: {
+      name: string;
+      code: string;
+      type: "PERCENTAGE" | "FIXED";
+      value: number;
+      startDate: string;
+      endDate?: string;
+    },
+  ) =>
+    apiRequest<Discount>(`/gyms/${gymId}/billing/discounts`, {
+      method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
+  revenue: async (gymId: string, token: string) => {
+    const payments = await apiRequest<Array<{ createdAt: string; finalAmount: number }>>(
+      `/gyms/${gymId}/billing/payments`,
+      { gymId, token },
+    );
+    return payments.slice(0, 6).map((payment, index) => ({
+      label: `D${index + 1}`,
+      value: Number(payment.finalAmount ?? 0),
+    }));
+  },
+  schedule: async (gymId: string, token: string) => {
+    const sessions = await apiRequest<
+      Array<{
+        id: string;
+        classId: string;
+        startTime: string;
+        endTime: string;
+        status: string;
+      }>
+    >(`/gyms/${gymId}/scheduling/sessions`, { gymId, token });
 
-        return sessions.map((session) => ({
-          id: session.id,
-          title: session.classRef?.name ?? "Clase",
-          trainer: session.classRef?.trainer?.name ?? "Sin asignar",
-          startsAt: session.startTime,
-          endsAt: session.endTime,
-          occupancy: 60,
-        })) as ClassSession[];
-      },
-      mockSchedule,
-    ),
+    return sessions.map((session) => ({
+      id: session.id,
+      classId: session.classId,
+      title: session.classId,
+      trainer: "Sin asignar",
+      startsAt: session.startTime,
+      endsAt: session.endTime,
+      occupancy: 0,
+      status: session.status,
+    })) as ClassSession[];
+  },
   classes: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<FitnessClass[]>(`/gyms/${gymId}/scheduling/classes`, { gymId, token }),
-      [],
-    ),
+    apiRequest<FitnessClass[]>(`/gyms/${gymId}/scheduling/classes`, { gymId, token }),
   createClass: (
     gymId: string,
     token: string,
@@ -267,13 +206,9 @@ export const api = {
       body: payload,
     }),
   bookings: (gymId: string, token: string, userId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<Array<{ id: string; sessionId: string; userId: string; status: string }>>(
-          `/gyms/${gymId}/scheduling/bookings${userId ? `?userId=${userId}` : ""}`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<Array<{ id: string; sessionId: string; userId: string; status: string }>>(
+      `/gyms/${gymId}/scheduling/bookings${userId ? `?userId=${userId}` : ""}`,
+      { gymId, token },
     ),
   createBooking: (
     gymId: string,
@@ -316,28 +251,95 @@ export const api = {
       token,
       body: payload,
     }),
-  trainingLive: (gymId: string, token: string) =>
-    withFallback(
-      async () => {
-        const sessions = await apiRequest<Array<{ id: string; routine?: { name?: string } }>>(
-          `/gyms/${gymId}/training-execution/workout-sessions`,
-          { gymId, token },
-        );
-        return sessions.slice(0, 3).map((session, index) => ({
-          id: session.id,
-          exercise: session.routine?.name ?? `Bloque ${index + 1}`,
-          reps: 10,
-          weight: 50 + index * 10,
-          done: index === 0,
-        })) as TrainingSet[];
+  deleteClass: (gymId: string, classId: string, token: string) =>
+    apiRequest<{ id: string; deletedAt: string }>(`/gyms/${gymId}/scheduling/classes/${classId}/delete`, {
+      method: "PATCH",
+      gymId,
+      token,
+    }),
+  updateSession: (
+    gymId: string,
+    token: string,
+    sessionId: string,
+    payload: { startTime?: string; endTime?: string; status?: "SCHEDULED" | "COMPLETED" | "CANCELLED" },
+  ) =>
+    apiRequest<{ id: string; status: string; startTime: string; endTime: string }>(
+      `/gyms/${gymId}/scheduling/sessions/${sessionId}`,
+      {
+        method: "PATCH",
+        gymId,
+        token,
+        body: payload,
       },
-      mockTraining,
     ),
+  createSession: (
+    gymId: string,
+    token: string,
+    payload: { classId: string; date: string; startTime: string; endTime: string },
+  ) =>
+    apiRequest<{ id: string; classId: string; startTime: string; endTime: string }>(
+      `/gyms/${gymId}/scheduling/sessions`,
+      {
+        method: "POST",
+        gymId,
+        token,
+        body: payload,
+      },
+    ),
+  schedules: (gymId: string, token: string) =>
+    apiRequest<ClassSchedule[]>(`/gyms/${gymId}/scheduling/schedules`, {
+      gymId,
+      token,
+    }),
+  createSchedule: (
+    gymId: string,
+    token: string,
+    payload: {
+      classId: string;
+      dayOfWeek: number;
+      startTime: string;
+      endTime: string;
+      isActive?: boolean;
+    },
+  ) =>
+    apiRequest<ClassSchedule>(`/gyms/${gymId}/scheduling/schedules`, {
+      method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
+  updateSchedule: (
+    gymId: string,
+    token: string,
+    scheduleId: string,
+    payload: {
+      dayOfWeek?: number;
+      startTime?: string;
+      endTime?: string;
+      isActive?: boolean;
+    },
+  ) =>
+    apiRequest<ClassSchedule>(`/gyms/${gymId}/scheduling/schedules/${scheduleId}`, {
+      method: "PATCH",
+      gymId,
+      token,
+      body: payload,
+    }),
+  trainingLive: async (gymId: string, token: string) => {
+    const sessions = await apiRequest<Array<{ id: string; routineId: string; status: string }>>(
+      `/gyms/${gymId}/training-execution/workout-sessions`,
+      { gymId, token },
+    );
+    return sessions.slice(0, 3).map((session) => ({
+      id: session.id,
+      exercise: session.routineId,
+      reps: 0,
+      weight: 0,
+      done: session.status === "COMPLETED",
+    })) as TrainingSet[];
+  },
   routines: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<Routine[]>(`/gyms/${gymId}/training/routines`, { gymId, token }),
-      [],
-    ),
+    apiRequest<Routine[]>(`/gyms/${gymId}/training/routines`, { gymId, token }),
   createRoutine: (
     gymId: string,
     token: string,
@@ -372,10 +374,7 @@ export const api = {
       body: payload,
     }),
   routineExercises: (gymId: string, token: string, routineId: string) =>
-    withFallback(
-      () => apiRequest<RoutineExercise[]>(`/gyms/${gymId}/training/routines/${routineId}/exercises`, { gymId, token }),
-      [],
-    ),
+    apiRequest<RoutineExercise[]>(`/gyms/${gymId}/training/routines/${routineId}/exercises`, { gymId, token }),
   assignRoutine: (
     gymId: string,
     token: string,
@@ -396,6 +395,26 @@ export const api = {
         body: payload,
       },
     ),
+  userRoutines: (gymId: string, token: string, userId: string) =>
+    apiRequest<
+      Array<{
+        id: string;
+        userId: string;
+        routineId: string;
+        startDate: string;
+        createdAt: string;
+        routine: {
+          id: string;
+          name: string;
+          exercises: Array<{
+            id: string;
+            reps: number;
+            weight?: number | null;
+            exercise?: { id: string; name: string } | null;
+          }>;
+        };
+      }>
+    >(`/gyms/${gymId}/training/user-routines?userId=${userId}`, { gymId, token }),
   createProgress: (
     gymId: string,
     token: string,
@@ -408,20 +427,13 @@ export const api = {
       body: payload,
     }),
   exercises: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<Exercise[]>(`/gyms/${gymId}/training/exercises`, { gymId, token }),
-      [],
-    ),
+    apiRequest<Exercise[]>(`/gyms/${gymId}/training/exercises`, { gymId, token }),
   workoutSessions: (gymId: string, token: string, userId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<WorkoutSession[]>(
-          `/gyms/${gymId}/training-execution/workout-sessions${
-            userId ? `?userId=${userId}` : ""
-          }`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<WorkoutSession[]>(
+      `/gyms/${gymId}/training-execution/workout-sessions${
+        userId ? `?userId=${userId}` : ""
+      }`,
+      { gymId, token },
     ),
   createWorkoutSession: (
     gymId: string,
@@ -430,6 +442,18 @@ export const api = {
   ) =>
     apiRequest<WorkoutSession>(`/gyms/${gymId}/training-execution/workout-sessions`, {
       method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
+  updateWorkoutSession: (
+    gymId: string,
+    token: string,
+    workoutSessionId: string,
+    payload: { endedAt?: string; status?: "IN_PROGRESS" | "COMPLETED" | "ABANDONED" },
+  ) =>
+    apiRequest<WorkoutSession>(`/gyms/${gymId}/training-execution/workout-sessions/${workoutSessionId}`, {
+      method: "PATCH",
       gymId,
       token,
       body: payload,
@@ -474,60 +498,82 @@ export const api = {
       body: payload,
     }),
   checkins: (gymId: string, token: string) =>
-    withFallback(
-      () => apiRequest<Checkin[]>(`/gyms/${gymId}/activity/checkins`, { gymId, token }),
-      [],
-    ),
+    apiRequest<Checkin[]>(`/gyms/${gymId}/activity/checkins`, { gymId, token }),
   nutritionPlans: (gymId: string, token: string, userId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<NutritionPlan[]>(
-          `/gyms/${gymId}/nutrition/plans${userId ? `?userId=${userId}` : ""}`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<NutritionPlan[]>(
+      `/gyms/${gymId}/nutrition/plans${userId ? `?userId=${userId}` : ""}`,
+      { gymId, token },
     ),
   nutritionMeals: (gymId: string, token: string, nutritionPlanId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<NutritionMeal[]>(
-          `/gyms/${gymId}/nutrition/meals${nutritionPlanId ? `?nutritionPlanId=${nutritionPlanId}` : ""}`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<NutritionMeal[]>(
+      `/gyms/${gymId}/nutrition/meals${nutritionPlanId ? `?nutritionPlanId=${nutritionPlanId}` : ""}`,
+      { gymId, token },
     ),
+  foods: (gymId: string, token: string) =>
+    apiRequest<Food[]>(`/gyms/${gymId}/nutrition/foods`, { gymId, token }),
+  createFood: (
+    gymId: string,
+    token: string,
+    payload: {
+      name: string;
+      caloriesPer100g: number;
+      proteinPer100g: number;
+      carbsPer100g: number;
+      fatPer100g: number;
+    },
+  ) =>
+    apiRequest<Food>(`/gyms/${gymId}/nutrition/foods`, {
+      method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
+  addMealFood: (
+    gymId: string,
+    token: string,
+    payload: {
+      mealId: string;
+      foodId: string;
+      quantity: number;
+      unit: "g" | "ml" | "unit" | "cup" | "tbsp" | "tsp";
+    },
+  ) =>
+    apiRequest<MealFood>(`/gyms/${gymId}/nutrition/meal-foods`, {
+      method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
   activities: (gymId: string, token: string) =>
-    withFallback(
-      () =>
-        apiRequest<UserActivity[]>(`/gyms/${gymId}/activity/user-activities`, {
-          gymId,
-          token,
-        }),
-      [],
-    ),
+    apiRequest<UserActivity[]>(`/gyms/${gymId}/activity/user-activities`, {
+      gymId,
+      token,
+    }),
   socialPosts: (
     gymId: string,
     token: string,
     userId?: string,
     filter: "all" | "own" | "liked" = "all",
   ) =>
-    withFallback(
-      () => {
-        const params = new URLSearchParams();
-        if (userId) params.set("userId", userId);
-        if (filter !== "all") params.set("filter", filter);
-        const query = params.toString();
-        return apiRequest<SocialPost[]>(
-          `/gyms/${gymId}/social/posts${query ? `?${query}` : ""}`,
-          { gymId, token },
-        );
-      },
-      mockSocialPosts,
-    ),
+    (() => {
+      const params = new URLSearchParams();
+      if (userId) params.set("userId", userId);
+      if (filter !== "all") params.set("filter", filter);
+      const query = params.toString();
+      return apiRequest<SocialPost[]>(
+        `/gyms/${gymId}/social/posts${query ? `?${query}` : ""}`,
+        { gymId, token },
+      );
+    })(),
   createSocialPost: (
     gymId: string,
     token: string,
-    payload: { userId: string; content: string; mediaUrl?: string },
+    payload: {
+      userId: string;
+      content: string;
+      mediaUrl?: string;
+      postType?: "PUBLICATION" | "ACHIEVEMENT" | "NUTRITION";
+    },
   ) =>
     apiRequest<SocialPost>(`/gyms/${gymId}/social/posts`, {
       method: "POST",
@@ -547,13 +593,9 @@ export const api = {
       body: payload,
     }),
   profileMediaPosts: (gymId: string, token: string, userId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<ProfileMediaPost[]>(
-          `/gyms/${gymId}/social/media-posts${userId ? `?userId=${userId}` : ""}`,
-          { gymId, token },
-        ),
-      [],
+    apiRequest<ProfileMediaPost[]>(
+      `/gyms/${gymId}/social/media-posts${userId ? `?userId=${userId}` : ""}`,
+      { gymId, token },
     ),
   createSocialComment: (
     gymId: string,
@@ -575,17 +617,38 @@ export const api = {
         token,
       },
     ),
+  likeMediaPost: (gymId: string, token: string, mediaPostId: string, userId: string) =>
+    apiRequest<MediaLike>(
+      `/gyms/${gymId}/social/media-likes?mediaPostId=${mediaPostId}&userId=${userId}`,
+      {
+        method: "POST",
+        gymId,
+        token,
+      },
+    ),
+  createMediaComment: (
+    gymId: string,
+    token: string,
+    payload: { mediaPostId: string; userId: string; content: string },
+  ) =>
+    apiRequest<MediaComment>(`/gyms/${gymId}/social/media-comments`, {
+      method: "POST",
+      gymId,
+      token,
+      body: payload,
+    }),
+  mediaComments: (gymId: string, token: string, mediaPostId: string) =>
+    apiRequest<MediaComment[]>(
+      `/gyms/${gymId}/social/media-comments?mediaPostId=${mediaPostId}`,
+      { gymId, token },
+    ),
   notifications: (gymId: string, token: string, userId?: string) =>
-    withFallback(
-      () =>
-        apiRequest<NotificationItem[]>(
-          `/gyms/${gymId}/notifications${userId ? `?userId=${userId}` : ""}`,
-          {
-            gymId,
-            token,
-          },
-        ),
-      [],
+    apiRequest<NotificationItem[]>(
+      `/gyms/${gymId}/notifications${userId ? `?userId=${userId}` : ""}`,
+      {
+        gymId,
+        token,
+      },
     ),
   markNotificationRead: (
     gymId: string,
@@ -600,20 +663,9 @@ export const api = {
       body: { isRead },
     }),
   notificationPreferences: (gymId: string, token: string, userId: string) =>
-    withFallback(
-      () =>
-        apiRequest<NotificationPreferences>(
-          `/gyms/${gymId}/notifications/preferences/${userId}`,
-          { gymId, token },
-        ),
-      {
-        id: "local",
-        userId,
-        gymId,
-        emailEnabled: true,
-        pushEnabled: true,
-        smsEnabled: false,
-      },
+    apiRequest<NotificationPreferences>(
+      `/gyms/${gymId}/notifications/preferences/${userId}`,
+      { gymId, token },
     ),
   updateNotificationPreferences: (
     gymId: string,
@@ -627,4 +679,94 @@ export const api = {
       token,
       body: payload,
     }),
+  permissions: (gymId: string, token: string) =>
+    apiRequest<Array<{ id: string; resource: string; action: string; scope: string; name: string }>>(
+      `/gyms/${gymId}/rbac/permissions`,
+      { gymId, token },
+    ),
+  createPermission: (
+    gymId: string,
+    token: string,
+    payload: {
+      name: string;
+      resource: string;
+      action: string;
+      scope: "OWN" | "GYM" | "GLOBAL";
+    },
+  ) =>
+    apiRequest<{ id: string; resource: string; action: string; scope: string; name: string }>(
+      `/gyms/${gymId}/rbac/permissions`,
+      {
+        method: "POST",
+        gymId,
+        token,
+        body: payload,
+      },
+    ),
+  rbacRoles: (gymId: string, token: string) =>
+    apiRequest<Array<{ id: string; name: string; description?: string | null }>>(
+      `/gyms/${gymId}/rbac/roles`,
+      { gymId, token },
+    ),
+  createRbacRole: (
+    gymId: string,
+    token: string,
+    payload: { name: string; description?: string },
+  ) =>
+    apiRequest<{ id: string; name: string; description?: string | null }>(
+      `/gyms/${gymId}/rbac/roles`,
+      {
+        method: "POST",
+        gymId,
+        token,
+        body: payload,
+      },
+    ),
+  rolePermissions: (gymId: string, token: string, roleId: string) =>
+    apiRequest<
+      Array<{
+        roleId: string;
+        permissionId: string;
+        permission: { id: string; resource: string; action: string; scope: string; name: string };
+      }>
+    >(`/gyms/${gymId}/rbac/roles/${roleId}/permissions`, { gymId, token }),
+  assignRolePermission: (
+    gymId: string,
+    token: string,
+    payload: { roleId: string; permissionId: string },
+  ) =>
+    apiRequest<{ roleId: string; permissionId: string }>(
+      `/gyms/${gymId}/rbac/roles/${payload.roleId}/permissions/${payload.permissionId}`,
+      {
+        method: "POST",
+        gymId,
+        token,
+      },
+    ),
+  removeRolePermission: (
+    gymId: string,
+    token: string,
+    payload: { roleId: string; permissionId: string },
+  ) =>
+    apiRequest<{ count: number }>(
+      `/gyms/${gymId}/rbac/roles/${payload.roleId}/permissions/${payload.permissionId}`,
+      {
+        method: "DELETE",
+        gymId,
+        token,
+      },
+    ),
+  auditLogs: (
+    token: string,
+    payload: {
+      tableName: string;
+      recordId?: string;
+    },
+  ) =>
+    apiRequest<AuditLogEntry[]>(
+      `/audit/logs?tableName=${encodeURIComponent(payload.tableName)}${
+        payload.recordId ? `&recordId=${encodeURIComponent(payload.recordId)}` : ""
+      }`,
+      { token },
+    ),
 };

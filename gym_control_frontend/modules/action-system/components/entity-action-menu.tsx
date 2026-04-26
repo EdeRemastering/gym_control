@@ -28,7 +28,7 @@ interface EntityActionMenuProps<TPayload> {
   actions: EntityAction<TPayload>[];
 }
 
-function getActionIcon(action: EntityAction) {
+function getActionIcon<T>(action: EntityAction<T>) {
   const text = action.label.toLowerCase();
   if (action.kind === "delete") return Trash2;
   if (action.kind === "restore") return RefreshCcw;

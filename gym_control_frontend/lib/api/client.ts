@@ -14,6 +14,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public details?: string,
   ) {
     super(message);
   }
@@ -35,7 +36,26 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    throw new ApiError(`API request failed for ${path}`, response.status);
+    let details = "";
+    try {
+      const payload = (await response.json()) as
+        | { message?: string | string[]; error?: string }
+        | undefined;
+      if (Array.isArray(payload?.message)) {
+        details = payload.message.join(", ");
+      } else if (typeof payload?.message === "string") {
+        details = payload.message;
+      } else if (typeof payload?.error === "string") {
+        details = payload.error;
+      }
+    } catch {
+      details = "";
+    }
+    throw new ApiError(
+      details ? `API request failed for ${path}: ${details}` : `API request failed for ${path}`,
+      response.status,
+      details || undefined,
+    );
   }
 
   return response.json() as Promise<T>;

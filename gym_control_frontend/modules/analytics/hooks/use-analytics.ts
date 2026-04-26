@@ -1,4 +1,4 @@
-import { useRevenue } from "@/hooks/use-gym-query";
+import { useRevenue } from "@/hooks/use-zudel-query";
 
 export function useAnalytics() {
   return { revenueQuery: useRevenue() };

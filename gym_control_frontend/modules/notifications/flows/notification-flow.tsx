@@ -5,8 +5,8 @@ import { Card } from "@/components/ui/card";
 import {
   useMarkNotificationRead,
   useUpdateNotificationPreferences,
-} from "@/hooks/use-gym-mutations";
-import { useNotifications } from "@/hooks/use-gym-query";
+} from "@/hooks/use-zudel-mutations";
+import { useNotifications } from "@/hooks/use-zudel-query";
 import { useSessionStore } from "@/lib/session-store";
 
 export function NotificationFlow() {

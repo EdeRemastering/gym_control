@@ -3,7 +3,13 @@ import { api } from "@/lib/api/services";
 import { useSessionStore } from "@/lib/session-store";
 import type {
   Checkin,
+  ClassSchedule,
+  Discount,
   FitnessClass,
+  Food,
+  MediaComment,
+  MediaLike,
+  MealFood,
   NotificationItem,
   NotificationPreferences,
   Payment,
@@ -165,6 +171,39 @@ export function useCreatePayment() {
   });
 }
 
+export function useCreateDiscount() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { code: string }) => `discounts:create:${payload.code}`,
+    affectedQueryKeys: (session) => [["discounts", session.gymId]],
+    mutationFn: (
+      session,
+      payload: {
+        name: string;
+        code: string;
+        type: "PERCENTAGE" | "FIXED";
+        value: number;
+        startDate: string;
+        endDate?: string;
+      },
+    ) => api.createDiscount(session.gymId, session.token, payload),
+    optimisticUpdate: (queryClient, _session, payload) => {
+      const optimisticDiscount: Discount = {
+        id: makeId("dsc"),
+        name: payload.name,
+        code: payload.code,
+        type: payload.type,
+        value: payload.value,
+        startDate: payload.startDate,
+        endDate: payload.endDate ?? null,
+      };
+      queryClient.setQueriesData<Discount[]>({ queryKey: ["discounts"] }, (old = []) => [
+        optimisticDiscount,
+        ...old,
+      ]);
+    },
+  });
+}
+
 export function useCreateMembership() {
   return useOptimisticGymMutation({
     lockKey: (payload: { userId: string; planId: string }) =>
@@ -213,6 +252,15 @@ export function useCreateClass() {
   });
 }
 
+export function useDeleteClass() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { classId: string }) => `classes:delete:${payload.classId}`,
+    affectedQueryKeys: (session) => [["classes", session.gymId], ["schedule", session.gymId]],
+    mutationFn: (session, payload: { classId: string }) =>
+      api.deleteClass(session.gymId, payload.classId, session.token),
+  });
+}
+
 export function useCreateBooking() {
   return useOptimisticGymMutation({
     lockKey: (payload: { sessionId: string; userId: string }) =>
@@ -226,6 +274,84 @@ export function useCreateBooking() {
         (old = []) => [{ id: makeId("bkg"), ...payload, status: "BOOKED" }, ...old],
       );
     },
+  });
+}
+
+export function useUpdateSession() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { sessionId: string }) => `sessions:update:${payload.sessionId}`,
+    affectedQueryKeys: (session) => [["schedule", session.gymId]],
+    mutationFn: (
+      session,
+      payload: { sessionId: string; startTime?: string; endTime?: string; status?: "SCHEDULED" | "COMPLETED" | "CANCELLED" },
+    ) =>
+      api.updateSession(session.gymId, session.token, payload.sessionId, {
+        startTime: payload.startTime,
+        endTime: payload.endTime,
+        status: payload.status,
+      }),
+  });
+}
+
+export function useCreateSession() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { classId: string; startTime: string }) =>
+      `sessions:create:${payload.classId}:${payload.startTime}`,
+    affectedQueryKeys: (session) => [["schedule", session.gymId]],
+    mutationFn: (
+      session,
+      payload: { classId: string; date: string; startTime: string; endTime: string },
+    ) => api.createSession(session.gymId, session.token, payload),
+  });
+}
+
+export function useCreateSchedule() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { classId: string; dayOfWeek: number; startTime: string }) =>
+      `schedules:create:${payload.classId}:${payload.dayOfWeek}:${payload.startTime}`,
+    affectedQueryKeys: (session) => [["classSchedules", session.gymId], ["schedule", session.gymId]],
+    mutationFn: (
+      session,
+      payload: {
+        classId: string;
+        dayOfWeek: number;
+        startTime: string;
+        endTime: string;
+        isActive?: boolean;
+      },
+    ) => api.createSchedule(session.gymId, session.token, payload),
+    optimisticUpdate: (queryClient, session, payload) => {
+      const optimisticSchedule: ClassSchedule = {
+        id: makeId("sch"),
+        gymId: session.gymId,
+        classId: payload.classId,
+        dayOfWeek: payload.dayOfWeek,
+        startTime: payload.startTime,
+        endTime: payload.endTime,
+        isActive: payload.isActive ?? true,
+      };
+      queryClient.setQueriesData<ClassSchedule[]>({ queryKey: ["classSchedules"] }, (old = []) => [
+        optimisticSchedule,
+        ...old,
+      ]);
+    },
+  });
+}
+
+export function useUpdateSchedule() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { scheduleId: string }) => `schedules:update:${payload.scheduleId}`,
+    affectedQueryKeys: (session) => [["classSchedules", session.gymId], ["schedule", session.gymId]],
+    mutationFn: (
+      session,
+      payload: {
+        scheduleId: string;
+        dayOfWeek?: number;
+        startTime?: string;
+        endTime?: string;
+        isActive?: boolean;
+      },
+    ) => api.updateSchedule(session.gymId, session.token, payload.scheduleId, payload),
   });
 }
 
@@ -449,16 +575,86 @@ export function useCreateProgress() {
   });
 }
 
+export function useCreateFood() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { name: string }) => `foods:create:${payload.name.toLowerCase()}`,
+    affectedQueryKeys: (session) => [["foods", session.gymId]],
+    mutationFn: (
+      session,
+      payload: {
+        name: string;
+        caloriesPer100g: number;
+        proteinPer100g: number;
+        carbsPer100g: number;
+        fatPer100g: number;
+      },
+    ) => api.createFood(session.gymId, session.token, payload),
+    optimisticUpdate: (queryClient, _session, payload) => {
+      const optimisticFood: Food = {
+        id: makeId("food"),
+        name: payload.name,
+        caloriesPer100g: payload.caloriesPer100g,
+        proteinPer100g: payload.proteinPer100g,
+        carbsPer100g: payload.carbsPer100g,
+        fatPer100g: payload.fatPer100g,
+      };
+      queryClient.setQueriesData<Food[]>({ queryKey: ["foods"] }, (old = []) => [
+        optimisticFood,
+        ...old,
+      ]);
+    },
+  });
+}
+
+export function useAddMealFood() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { mealId: string; foodId: string }) =>
+      `meal-foods:add:${payload.mealId}:${payload.foodId}`,
+    affectedQueryKeys: (_session, payload) => [["nutritionMeals"], ["mealFoods", payload.mealId]],
+    mutationFn: (
+      session,
+      payload: {
+        mealId: string;
+        foodId: string;
+        quantity: number;
+        unit: "g" | "ml" | "unit" | "cup" | "tbsp" | "tsp";
+      },
+    ) => api.addMealFood(session.gymId, session.token, payload),
+    optimisticUpdate: (queryClient, _session, payload) => {
+      const optimisticMealFood: MealFood = {
+        id: makeId("mealfood"),
+        mealId: payload.mealId,
+        foodId: payload.foodId,
+        quantity: payload.quantity,
+        unit: payload.unit,
+      };
+      queryClient.setQueriesData<MealFood[]>({ queryKey: ["mealFoods", payload.mealId] }, (old = []) => [
+        optimisticMealFood,
+        ...old,
+      ]);
+    },
+  });
+}
+
 export function useCreateSocialPost() {
   return useOptimisticGymMutation({
     lockKey: () => "social-posts:create",
     affectedQueryKeys: (session) => [["socialPosts", session.gymId]],
-    mutationFn: (session, payload: { userId: string; content: string; mediaUrl?: string }) =>
+    mutationFn: (
+      session,
+      payload: {
+        userId: string;
+        content: string;
+        mediaUrl?: string;
+        postType?: "PUBLICATION" | "ACHIEVEMENT" | "NUTRITION";
+      },
+    ) =>
       api.createSocialPost(session.gymId, session.token, payload),
     optimisticUpdate: (queryClient, _session, payload) => {
       const optimisticPost: SocialPost = {
         id: makeId("post"),
         userId: payload.userId,
+        postType: payload.postType ?? "PUBLICATION",
         content: payload.content,
         mediaUrl: payload.mediaUrl ?? null,
         createdAt: new Date().toISOString(),
@@ -529,6 +725,61 @@ export function useLikeSocialPost() {
   });
 }
 
+export function useLikeMediaPost() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { mediaPostId: string; userId: string }) =>
+      `media-like:toggle:${payload.mediaPostId}:${payload.userId}`,
+    affectedQueryKeys: (session) => [["profileMediaPosts", session.gymId]],
+    mutationFn: (session, payload: { mediaPostId: string; userId: string }) =>
+      api.likeMediaPost(session.gymId, session.token, payload.mediaPostId, payload.userId),
+    optimisticUpdate: (queryClient, _session, payload) => {
+      queryClient.setQueriesData<MediaLike[]>({ queryKey: ["mediaLikes"] }, (old = []) => {
+        const existing = old.find((item) => item.mediaPostId === payload.mediaPostId);
+        if (!existing) {
+          return [
+            { mediaPostId: payload.mediaPostId, userId: payload.userId, isLiked: true, likeCount: 1 },
+            ...old,
+          ];
+        }
+        return old.map((item) =>
+          item.mediaPostId === payload.mediaPostId
+            ? {
+                ...item,
+                isLiked: !item.isLiked,
+                likeCount: Math.max(0, item.likeCount + (item.isLiked ? -1 : 1)),
+              }
+            : item,
+        );
+      });
+    },
+  });
+}
+
+export function useCreateMediaComment() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { mediaPostId: string; userId: string }) =>
+      `media-comment:create:${payload.mediaPostId}:${payload.userId}`,
+    affectedQueryKeys: (_session, payload) => [["mediaComments", payload.mediaPostId]],
+    mutationFn: (
+      session,
+      payload: { mediaPostId: string; userId: string; content: string },
+    ) => api.createMediaComment(session.gymId, session.token, payload),
+    optimisticUpdate: (queryClient, _session, payload) => {
+      const optimisticComment: MediaComment = {
+        id: makeId("mediacmt"),
+        mediaPostId: payload.mediaPostId,
+        userId: payload.userId,
+        content: payload.content,
+        createdAt: new Date().toISOString(),
+      };
+      queryClient.setQueriesData<MediaComment[]>(
+        { queryKey: ["mediaComments", payload.mediaPostId] },
+        (old = []) => [...old, optimisticComment],
+      );
+    },
+  });
+}
+
 export function useMarkNotificationRead() {
   return useOptimisticGymMutation({
     lockKey: (payload: { notificationId: string }) => `notifications:read:${payload.notificationId}`,
@@ -566,5 +817,51 @@ export function useUpdateNotificationPreferences() {
         (old) => (old ? { ...old, ...payload } : old),
       );
     },
+  });
+}
+
+export function useAssignRolePermission() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { roleId: string; permissionId: string }) =>
+      `role-permission:assign:${payload.roleId}:${payload.permissionId}`,
+    affectedQueryKeys: (session) => [["permissions", session.gymId], ["rolePermissions", session.gymId]],
+    mutationFn: (session, payload: { roleId: string; permissionId: string }) =>
+      api.assignRolePermission(session.gymId, session.token, payload),
+  });
+}
+
+export function useRemoveRolePermission() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { roleId: string; permissionId: string }) =>
+      `role-permission:remove:${payload.roleId}:${payload.permissionId}`,
+    affectedQueryKeys: (session) => [["permissions", session.gymId], ["rolePermissions", session.gymId]],
+    mutationFn: (session, payload: { roleId: string; permissionId: string }) =>
+      api.removeRolePermission(session.gymId, session.token, payload),
+  });
+}
+
+export function useCreateRbacRole() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { name: string }) => `rbac-role:create:${payload.name.toLowerCase()}`,
+    affectedQueryKeys: (session) => [["rbacRoles", session.gymId]],
+    mutationFn: (session, payload: { name: string; description?: string }) =>
+      api.createRbacRole(session.gymId, session.token, payload),
+  });
+}
+
+export function useCreatePermission() {
+  return useOptimisticGymMutation({
+    lockKey: (payload: { resource: string; action: string; scope: string }) =>
+      `permission:create:${payload.resource}:${payload.action}:${payload.scope}`,
+    affectedQueryKeys: (session) => [["permissions", session.gymId]],
+    mutationFn: (
+      session,
+      payload: {
+        name: string;
+        resource: string;
+        action: string;
+        scope: "OWN" | "GYM" | "GLOBAL";
+      },
+    ) => api.createPermission(session.gymId, session.token, payload),
   });
 }

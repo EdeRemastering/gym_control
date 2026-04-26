@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { usePayments, useRevenue } from "@/hooks/use-gym-query";
+import { usePayments, useRevenue } from "@/hooks/use-zudel-query";
 
 export function AnalyticsFlow() {
   const revenue = useRevenue();

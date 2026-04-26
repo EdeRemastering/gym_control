@@ -1,17 +1,85 @@
 @import "tailwindcss";
 
-:root {
+:root,
+[data-theme="neon-dark"] {
   --background: #0b0f19;
   --surface: #111827;
   --card: #1f2937;
   --foreground: #f3f4f6;
   --muted: #9ca3af;
   --border: #2a3441;
-  --primary: #5b7cff;
-  --primary-soft: rgba(91, 124, 255, 0.1);
-  --secondary: #22c55e;
+  --primary: #22d3ee;
+  --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
+  --secondary: #34d399;
   --warning: #f59e0b;
   --danger: #ef4444;
+  --on-primary: #03131a;
+  --on-danger: #ffffff;
+
+  /* semantic aliases (design tokens) */
+  --bg: var(--background);
+  --text: var(--foreground);
+  --accent: var(--secondary);
+}
+
+[data-theme="light"] {
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --card: #fdfefe;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --border: #cbd5e1;
+  --primary: #2563eb;
+  --primary-soft: color-mix(in srgb, var(--primary) 14%, transparent);
+  --secondary: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --on-primary: #ffffff;
+  --on-danger: #ffffff;
+
+  --bg: var(--background);
+  --text: var(--foreground);
+  --accent: var(--secondary);
+}
+
+[data-theme="dark-soft"] {
+  --background: #0f172a;
+  --surface: #1e293b;
+  --card: #1f2b3d;
+  --foreground: #e2e8f0;
+  --muted: #94a3b8;
+  --border: #334155;
+  --primary: #60a5fa;
+  --primary-soft: color-mix(in srgb, var(--primary) 16%, transparent);
+  --secondary: #2dd4bf;
+  --warning: #f59e0b;
+  --danger: #f87171;
+  --on-primary: #0b1220;
+  --on-danger: #ffffff;
+
+  --bg: var(--background);
+  --text: var(--foreground);
+  --accent: var(--secondary);
+}
+
+[data-theme="high-contrast"] {
+  --background: #000000;
+  --surface: #000000;
+  --card: #0a0a0a;
+  --foreground: #ffffff;
+  --muted: #d4d4d4;
+  --border: #ffffff;
+  --primary: #ffff00;
+  --primary-soft: color-mix(in srgb, var(--primary) 22%, transparent);
+  --secondary: #00ffff;
+  --warning: #ffb400;
+  --danger: #ff5050;
+  --on-primary: #000000;
+  --on-danger: #000000;
+
+  --bg: var(--background);
+  --text: var(--foreground);
+  --accent: var(--secondary);
 }
 
 @theme inline {
@@ -83,4 +151,144 @@ a:focus-visible {
     color-mix(in srgb, var(--primary) 90%, #ffffff 10%) 0%,
     color-mix(in srgb, var(--primary) 70%, var(--secondary) 30%) 100%
   );
+}
+
+@layer components {
+  .app-shell-padding {
+    @apply p-3 pb-[calc(8rem+env(safe-area-inset-bottom))] md:p-4 md:pb-6 xl:p-5;
+  }
+
+  .panel-padding {
+    @apply p-4 md:p-5;
+  }
+
+  .stack-section {
+    @apply space-y-3 md:space-y-4;
+  }
+
+  .touch-target {
+    @apply min-h-10 md:min-h-11;
+  }
+
+  .social-panel {
+    @apply rounded-2xl border p-4;
+    border-color: color-mix(in srgb, var(--primary) 18%, var(--border));
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface) 90%, #000 10%),
+      color-mix(in srgb, var(--card) 82%, var(--primary) 18%)
+    );
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 8%, transparent);
+  }
+
+  .social-panel-hero {
+    @apply overflow-hidden rounded-2xl border border-primary/35 p-5;
+    background:
+      radial-gradient(
+        circle at 16% 18%,
+        color-mix(in srgb, var(--secondary) 32%, transparent),
+        transparent 45%
+      ),
+      radial-gradient(
+        circle at 82% 24%,
+        color-mix(in srgb, #a855f7 20%, transparent),
+        transparent 42%
+      ),
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--background) 96%, #000 4%),
+        color-mix(in srgb, var(--surface) 82%, var(--primary) 18%)
+      );
+  }
+
+  .social-panel-form {
+    @apply rounded-2xl border border-primary/25 p-4 md:p-5;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--background) 94%, #000 6%),
+      color-mix(in srgb, var(--surface) 88%, var(--primary) 12%)
+    );
+  }
+
+  .social-chip {
+    @apply rounded-full border border-border/60 bg-background/35 px-3 py-1 text-foreground/85;
+  }
+
+  .social-article {
+    @apply overflow-hidden rounded-2xl border border-border;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface) 90%, #000 10%),
+      color-mix(in srgb, var(--card) 85%, var(--primary) 15%)
+    );
+  }
+}
+
+/* Compatibility layer:
+ * while legacy components are migrated from hardcoded white/black utilities
+ * to semantic tokens, remap the most used classes to theme variables.
+ */
+@layer utilities {
+  [data-theme] :where(.text-white) {
+    color: var(--foreground) !important;
+  }
+
+  [data-theme] :where(.text-white\/95) { color: color-mix(in srgb, var(--foreground) 95%, transparent) !important; }
+  [data-theme] :where(.text-white\/90) { color: color-mix(in srgb, var(--foreground) 90%, transparent) !important; }
+  [data-theme] :where(.text-white\/85) { color: color-mix(in srgb, var(--foreground) 85%, transparent) !important; }
+  [data-theme] :where(.text-white\/80) { color: color-mix(in srgb, var(--foreground) 80%, transparent) !important; }
+  [data-theme] :where(.text-white\/75) { color: color-mix(in srgb, var(--foreground) 75%, transparent) !important; }
+  [data-theme] :where(.text-white\/70) { color: color-mix(in srgb, var(--foreground) 70%, transparent) !important; }
+  [data-theme] :where(.text-white\/65) { color: color-mix(in srgb, var(--foreground) 65%, transparent) !important; }
+  [data-theme] :where(.text-white\/60) { color: color-mix(in srgb, var(--foreground) 60%, transparent) !important; }
+  [data-theme] :where(.text-white\/55) { color: color-mix(in srgb, var(--foreground) 55%, transparent) !important; }
+  [data-theme] :where(.text-white\/50) { color: color-mix(in srgb, var(--foreground) 50%, transparent) !important; }
+  [data-theme] :where(.text-white\/45) { color: color-mix(in srgb, var(--foreground) 45%, transparent) !important; }
+  [data-theme] :where(.text-white\/40) { color: color-mix(in srgb, var(--foreground) 40%, transparent) !important; }
+  [data-theme] :where(.text-white\/35) { color: color-mix(in srgb, var(--foreground) 35%, transparent) !important; }
+  [data-theme] :where(.text-white\/30) { color: color-mix(in srgb, var(--foreground) 30%, transparent) !important; }
+
+  [data-theme] :where(.bg-black) {
+    background-color: color-mix(in srgb, var(--background) 90%, black 10%) !important;
+  }
+  [data-theme] :where(.bg-black\/50) { background-color: color-mix(in srgb, var(--background) 50%, transparent) !important; }
+  [data-theme] :where(.bg-black\/40) { background-color: color-mix(in srgb, var(--background) 40%, transparent) !important; }
+  [data-theme] :where(.bg-black\/30) { background-color: color-mix(in srgb, var(--background) 30%, transparent) !important; }
+  [data-theme] :where(.bg-black\/25) { background-color: color-mix(in srgb, var(--background) 25%, transparent) !important; }
+  [data-theme] :where(.bg-black\/20) { background-color: color-mix(in srgb, var(--background) 20%, transparent) !important; }
+  [data-theme] :where(.bg-black\/10) { background-color: color-mix(in srgb, var(--background) 10%, transparent) !important; }
+
+  [data-theme] :where(.bg-white\/10) { background-color: color-mix(in srgb, var(--foreground) 10%, transparent) !important; }
+  [data-theme] :where(.bg-white\/5) { background-color: color-mix(in srgb, var(--foreground) 5%, transparent) !important; }
+  [data-theme] :where(.border-white\/10) { border-color: color-mix(in srgb, var(--foreground) 10%, transparent) !important; }
+  [data-theme] :where(.border-white\/\[0\.08\]) { border-color: color-mix(in srgb, var(--foreground) 8%, transparent) !important; }
+  [data-theme] :where(.border-white\/\[0\.06\]) { border-color: color-mix(in srgb, var(--foreground) 6%, transparent) !important; }
+
+  /* In light mode, legacy "white/xx" text tends to look too washed out.
+   * Lift contrast by mapping these classes to stronger foreground ratios.
+   */
+  [data-theme="light"] :where(.text-white\/55) { color: color-mix(in srgb, var(--foreground) 68%, transparent) !important; }
+  [data-theme="light"] :where(.text-white\/50) { color: color-mix(in srgb, var(--foreground) 64%, transparent) !important; }
+  [data-theme="light"] :where(.text-white\/45) { color: color-mix(in srgb, var(--foreground) 60%, transparent) !important; }
+  [data-theme="light"] :where(.text-white\/40) { color: color-mix(in srgb, var(--foreground) 56%, transparent) !important; }
+  [data-theme="light"] :where(.text-white\/35) { color: color-mix(in srgb, var(--foreground) 52%, transparent) !important; }
+  [data-theme="light"] :where(.text-white\/30) { color: color-mix(in srgb, var(--foreground) 48%, transparent) !important; }
+
+  /* Light theme readability improvements for tiny text and subtle separators */
+  [data-theme="light"] :where(.text-xs.text-muted, .text-\[var\(--muted\)\]) {
+    color: color-mix(in srgb, var(--foreground) 68%, transparent) !important;
+  }
+  [data-theme="light"] :where(.border-border\/60) {
+    border-color: color-mix(in srgb, var(--border) 82%, var(--foreground) 18%) !important;
+  }
+  [data-theme="light"] :where(.bg-background\/35, .bg-background\/40, .bg-background\/45) {
+    background-color: color-mix(in srgb, var(--background) 88%, #ffffff 12%) !important;
+  }
+  [data-theme="light"] :where(.hover\:bg-white\/5:hover, .hover\:bg-white\/10:hover) {
+    background-color: color-mix(in srgb, var(--foreground) 10%, transparent) !important;
+  }
+  [data-theme="light"] :where(button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible) {
+    outline-width: 3px;
+    outline-color: color-mix(in srgb, var(--primary) 75%, #ffffff 25%);
+  }
 }

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gym Control",
+  title: "Zudel OS",
   description: "Plataforma SaaS para gestión inteligente de gimnasios",
 };
 

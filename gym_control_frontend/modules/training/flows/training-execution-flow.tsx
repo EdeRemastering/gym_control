@@ -1,19 +1,29 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { FormInput } from "@/components/forms/form-controls";
+import { FormField } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   useAssignRoutine,
   useCreateExercise,
-  useCreateExerciseLog,
   useCreateProgress,
   useCreateRoutine,
   useCreateSetLog,
-  useCreateWorkoutSession,
-} from "@/hooks/use-gym-mutations";
-import { useExercises, useRoutines } from "@/hooks/use-gym-query";
+} from "@/hooks/use-zudel-mutations";
+import { useExercises, useRoutines } from "@/hooks/use-zudel-query";
 import { useSessionStore } from "@/lib/session-store";
+import { useTraining } from "@/modules/training/hooks/use-training";
+
+const trainingExecutionSchema = z.object({
+  routineName: z.string().min(3, "Nombre de rutina requerido"),
+  exerciseName: z.string().min(3, "Nombre de ejercicio requerido"),
+});
+
+type TrainingExecutionForm = z.infer<typeof trainingExecutionSchema>;
 
 export function TrainingExecutionFlow() {
   const user = useSessionStore((state) => state.user);
@@ -22,19 +32,23 @@ export function TrainingExecutionFlow() {
   const createRoutine = useCreateRoutine();
   const createExercise = useCreateExercise();
   const assignRoutine = useAssignRoutine();
-  const createWorkout = useCreateWorkoutSession();
-  const createExerciseLog = useCreateExerciseLog();
+  const { createWorkoutSession: createWorkout, createExerciseLog } = useTraining();
   const createSetLog = useCreateSetLog();
   const createProgress = useCreateProgress();
 
-  const [routineName, setRoutineName] = useState("Flujo E2E");
-  const [exerciseName, setExerciseName] = useState("Press Militar");
+  const form = useForm<TrainingExecutionForm>({
+    resolver: zodResolver(trainingExecutionSchema),
+    mode: "onChange",
+    defaultValues: {
+      routineName: "Flujo E2E",
+      exerciseName: "Press Militar",
+    },
+  });
 
-  async function onRunFlow(event: FormEvent) {
-    event.preventDefault();
+  const onRunFlow = form.handleSubmit(async (data) => {
     if (!user?.id) return;
-    const routine = await createRoutine.mutateAsync({ name: routineName });
-    const exercise = await createExercise.mutateAsync({ name: exerciseName });
+    const routine = await createRoutine.mutateAsync({ name: data.routineName });
+    const exercise = await createExercise.mutateAsync({ name: data.exerciseName });
 
     await assignRoutine.mutateAsync({
       userId: user.id,
@@ -69,28 +83,49 @@ export function TrainingExecutionFlow() {
       muscle: "34",
       measuredAt: new Date().toISOString(),
     });
-  }
+  });
 
   return (
     <Card>
       <p className="text-sm text-[var(--muted)]">Training Execution Flow</p>
       <form className="mt-3 grid gap-2 md:grid-cols-3" onSubmit={onRunFlow}>
-        <input
-          value={routineName}
-          onChange={(event) => setRoutineName(event.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-white/5 p-2 text-sm text-white"
-          placeholder="Rutina"
-        />
-        <input
-          value={exerciseName}
-          onChange={(event) => setExerciseName(event.target.value)}
-          className="rounded-lg border border-[var(--border)] bg-white/5 p-2 text-sm text-white"
-          placeholder="Ejercicio"
-        />
+        <FormField
+          label="Nombre de rutina"
+          htmlFor="training-execution-routine"
+          error={form.formState.errors.routineName?.message}
+        >
+          <FormInput
+            id="training-execution-routine"
+            {...form.register("routineName")}
+            placeholder="Ej: Fuerza tren superior"
+          />
+        </FormField>
+        <FormField
+          label="Nombre de ejercicio"
+          htmlFor="training-execution-exercise"
+          error={form.formState.errors.exerciseName?.message}
+        >
+          <FormInput
+            id="training-execution-exercise"
+            {...form.register("exerciseName")}
+            placeholder="Ej: Press militar"
+          />
+        </FormField>
         <Button
           type="submit"
           size="sm"
+          disabled={
+            form.formState.isSubmitting ||
+            createRoutine.isPending ||
+            createExercise.isPending ||
+            assignRoutine.isPending ||
+            createWorkout.isPending ||
+            createExerciseLog.isPending ||
+            createSetLog.isPending ||
+            createProgress.isPending
+          }
           loading={
+            form.formState.isSubmitting ||
             createRoutine.isPending ||
             createExercise.isPending ||
             assignRoutine.isPending ||
@@ -100,7 +135,7 @@ export function TrainingExecutionFlow() {
             createProgress.isPending
           }
         >
-          Ejecutar flujo completo
+          {form.formState.isSubmitting ? "Ejecutando..." : "Ejecutar flujo completo"}
         </Button>
       </form>
       <p className="mt-2 text-xs text-[var(--muted)]">

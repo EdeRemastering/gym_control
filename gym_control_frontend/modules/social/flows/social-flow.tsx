@@ -6,8 +6,8 @@ import {
   useCreateSocialComment,
   useCreateSocialPost,
   useLikeSocialPost,
-} from "@/hooks/use-gym-mutations";
-import { useSocialPosts } from "@/hooks/use-gym-query";
+} from "@/hooks/use-zudel-mutations";
+import { useSocialPosts } from "@/hooks/use-zudel-query";
 import { useSessionStore } from "@/lib/session-store";
 
 export function SocialFlow() {

@@ -37,11 +37,29 @@ export const usePlans = () => {
   });
 };
 
+export const useMemberships = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["memberships", gymId],
+    queryFn: () => api.memberships(gymId!, token!),
+    enabled,
+  });
+};
+
 export const usePayments = () => {
   const { token, gymId, enabled } = useSessionRequirements();
   return useQuery({
     queryKey: ["payments", gymId],
     queryFn: () => api.payments(gymId!, token!),
+    enabled,
+  });
+};
+
+export const useDiscounts = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["discounts", gymId],
+    queryFn: () => api.discounts(gymId!, token!),
     enabled,
   });
 };
@@ -64,6 +82,15 @@ export const useSchedule = () => {
   });
 };
 
+export const useClassSchedules = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["classSchedules", gymId],
+    queryFn: () => api.schedules(gymId!, token!),
+    enabled,
+  });
+};
+
 export const useClasses = () => {
   const { token, gymId, enabled } = useSessionRequirements();
   return useQuery({
@@ -73,11 +100,13 @@ export const useClasses = () => {
   });
 };
 
-export const useBookings = () => {
+export const useBookings = (options?: { userId?: string | null }) => {
   const { token, gymId, enabled } = useSessionRequirements();
-  const userId = useSessionStore((state) => state.user?.id);
+  const currentUserId = useSessionStore((state) => state.user?.id);
+  const requestedUserId = options?.userId;
+  const userId = requestedUserId === undefined ? currentUserId : requestedUserId ?? undefined;
   return useQuery({
-    queryKey: ["bookings", gymId, userId],
+    queryKey: ["bookings", gymId, userId ?? "all"],
     queryFn: () => api.bookings(gymId!, token!, userId),
     enabled,
   });
@@ -129,6 +158,16 @@ export const useWorkoutSessions = () => {
   });
 };
 
+export const useUserRoutines = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  const userId = useSessionStore((state) => state.user?.id);
+  return useQuery({
+    queryKey: ["userRoutines", gymId, userId],
+    queryFn: () => api.userRoutines(gymId!, token!, userId!),
+    enabled: enabled && Boolean(userId),
+  });
+};
+
 export const useCheckins = () => {
   const { token, gymId, enabled } = useSessionRequirements();
   return useQuery({
@@ -157,12 +196,30 @@ export const useNutritionMeals = (nutritionPlanId?: string) => {
   });
 };
 
+export const useFoods = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["foods", gymId],
+    queryFn: () => api.foods(gymId!, token!),
+    enabled,
+  });
+};
+
 export const useActivities = () => {
   const { token, gymId, enabled } = useSessionRequirements();
   return useQuery({
     queryKey: ["activities", gymId],
     queryFn: () => api.activities(gymId!, token!),
     enabled,
+  });
+};
+
+export const useAuditLogs = (tableName?: string, recordId?: string) => {
+  const token = useSessionStore((state) => state.accessToken);
+  return useQuery({
+    queryKey: ["auditLogs", tableName, recordId],
+    queryFn: () => api.auditLogs(token!, { tableName: tableName!, recordId }),
+    enabled: Boolean(token && tableName),
   });
 };
 
@@ -176,7 +233,32 @@ export const useSocialPosts = () => {
   });
 };
 
-/** Publicaciones de un autor concreto (filtra el listado del gimnasio). */
+export const useExploreSocialPosts = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  const userId = useSessionStore((state) => state.user?.id);
+  return useQuery({
+    queryKey: ["socialPosts", "explore", gymId, userId],
+    queryFn: async () => {
+      const gyms = await api.gyms(token!);
+      const otherGyms = gyms.filter((gym) => gym.id !== gymId);
+      const postsByGym = await Promise.all(
+        otherGyms.map(async (gym) => {
+          const posts = await api.socialPosts(gym.id, token!, userId, "all");
+          return posts.map((post) => ({
+            ...post,
+            sourceGymId: gym.id,
+            sourceGymName: gym.name,
+          }));
+        }),
+      );
+      return postsByGym
+        .flat()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    },
+    enabled,
+  });
+};
+
 export const useSocialPostsByUserId = (targetUserId: string | null) => {
   const { token, gymId, enabled } = useSessionRequirements();
   const viewerId = useSessionStore((state) => state.user?.id);
@@ -248,5 +330,41 @@ export const useNotificationPreferences = () => {
     queryKey: ["notificationPreferences", gymId, userId],
     queryFn: () => api.notificationPreferences(gymId!, token!, userId!),
     enabled: enabled && Boolean(userId),
+  });
+};
+
+export const usePermissions = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["permissions", gymId],
+    queryFn: () => api.permissions(gymId!, token!),
+    enabled,
+  });
+};
+
+export const useRbacRoles = () => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["rbacRoles", gymId],
+    queryFn: () => api.rbacRoles(gymId!, token!),
+    enabled,
+  });
+};
+
+export const useRolePermissions = (roleId?: string) => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["rolePermissions", gymId, roleId],
+    queryFn: () => api.rolePermissions(gymId!, token!, roleId!),
+    enabled: enabled && Boolean(roleId),
+  });
+};
+
+export const useMediaComments = (mediaPostId?: string) => {
+  const { token, gymId, enabled } = useSessionRequirements();
+  return useQuery({
+    queryKey: ["mediaComments", gymId, mediaPostId],
+    queryFn: () => api.mediaComments(gymId!, token!, mediaPostId!),
+    enabled: enabled && Boolean(mediaPostId),
   });
 };

@@ -8,11 +8,12 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-[var(--primary)] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.04)] hover:translate-y-[-1px] hover:shadow-[0_10px_24px_rgba(91,124,255,0.35)]",
+          "bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_0_0_1px_color-mix(in_srgb,var(--foreground)_12%,transparent)] hover:translate-y-[-1px] hover:shadow-[0_10px_24px_color-mix(in_srgb,var(--primary)_38%,transparent)]",
         secondary:
-          "bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[#263243]",
-        ghost: "text-[var(--foreground)] hover:bg-white/5",
-        destructive: "bg-[var(--danger)] text-white hover:bg-[#d53a3a]",
+          "bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[color-mix(in_srgb,var(--card)_82%,var(--primary)_18%)]",
+        ghost: "text-[var(--foreground)] hover:bg-[color-mix(in_srgb,var(--foreground)_7%,transparent)]",
+        destructive:
+          "bg-[var(--danger)] text-[var(--on-danger)] hover:bg-[color-mix(in_srgb,var(--danger)_85%,black_15%)]",
       },
       size: {
         sm: "h-9 px-3",
