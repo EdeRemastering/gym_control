@@ -3,6 +3,7 @@ import { PermissionScope } from '@prisma/client';
 import { Permission, Scope } from '../rbac/rbac.decorators';
 import {
   CreateCommentDto,
+  CreateMediaCommentDto,
   CreateMediaPostDto,
   CreatePostDto,
 } from './dto/social.dto';
@@ -66,5 +67,36 @@ export class SocialController {
     @Query('userId') userId?: string,
   ) {
     return this.socialService.listMediaPosts(gymId, userId);
+  }
+
+  @Post('media-likes')
+  @Permission('media_like:create')
+  @Scope(PermissionScope.OWN)
+  likeMediaPost(
+    @Param('gymId') gymId: string,
+    @Query('mediaPostId') mediaPostId: string,
+    @Query('userId') userId: string,
+  ) {
+    return this.socialService.likeMediaPost(gymId, mediaPostId, userId);
+  }
+
+  @Post('media-comments')
+  @Permission('media_comment:create')
+  @Scope(PermissionScope.OWN)
+  createMediaComment(
+    @Param('gymId') gymId: string,
+    @Body() dto: CreateMediaCommentDto,
+  ) {
+    return this.socialService.createMediaComment(gymId, dto);
+  }
+
+  @Get('media-comments')
+  @Permission('media_comment:read')
+  @Scope(PermissionScope.GYM)
+  listMediaComments(
+    @Param('gymId') gymId: string,
+    @Query('mediaPostId') mediaPostId: string,
+  ) {
+    return this.socialService.listMediaComments(gymId, mediaPostId);
   }
 }

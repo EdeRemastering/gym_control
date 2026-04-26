@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from '../auth/auth.module';
+import { RbacController } from './rbac.controller';
 import { RbacService } from './rbac.service';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { PermissionCacheService } from './cache/permission-cache.service';
@@ -28,6 +29,7 @@ import { AuthGuard } from './guards/auth.guard';
  */
 @Module({
   imports: [AuthModule],
+  controllers: [RbacController],
   providers: [
     RbacService,
     PermissionCacheService,

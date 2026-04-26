@@ -116,6 +116,7 @@ export class BillingService {
       select: {
         id: true,
         userId: true,
+        membershipId: true,
         status: true,
         method: true,
         finalAmount: true,

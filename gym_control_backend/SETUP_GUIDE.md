@@ -1,4 +1,4 @@
-# Gym Control Backend - Setup & Architecture Guide
+# Zudel OS Backend - Setup & Architecture Guide
 
 ## 🎯 Overview
 

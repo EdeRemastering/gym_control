@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import type { Role } from "@/lib/types";
 import type { ModuleShellProps } from "@/lib/module-shell-props";
 import { useSessionStore } from "@/lib/session-store";
+import { moduleIcons } from "@/lib/module-icons";
 import { moduleLabels, roleModules, type ModuleKey } from "@/lib/navigation";
 import { useProfileNavStore } from "@/lib/profile-nav-store";
 
@@ -32,6 +33,7 @@ export function GymControlShell() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [commandQuery, setCommandQuery] = useState("");
   const prevModuleRef = useRef<ModuleKey>(activeModule);
+  const mobileModuleNavRef = useRef<HTMLDivElement>(null);
 
   const allowedModules = useMemo(() => roleModules[role], [role]);
   const requestProfileFocus = useProfileNavStore((state) => state.requestProfileFocus);
@@ -57,14 +59,6 @@ export function GymControlShell() {
     { label: "Publicar en feed", module: "social" as ModuleKey },
     { label: "Ver notificaciones", module: "notifications" as ModuleKey },
   ];
-
-  const quickNav = [
-    "dashboard",
-    "social",
-    "training",
-    "notifications",
-    "profile",
-  ] as ModuleKey[];
 
   const filteredActions = quickActions.filter((action) =>
     action.label.toLowerCase().includes(commandQuery.toLowerCase()),
@@ -117,8 +111,17 @@ export function GymControlShell() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    if (!mq.matches) return;
+    const root = mobileModuleNavRef.current;
+    if (!root) return;
+    const btn = root.querySelector<HTMLElement>(`[data-module-nav="${activeModule}"]`);
+    btn?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [activeModule, allowedModules]);
+
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-[1600px] gap-4 p-3 pb-24 md:p-5 md:pb-6 xl:p-6">
+    <div className="mx-auto flex min-h-screen w-full max-w-[1600px] gap-4 p-3 pb-28 md:p-5 md:pb-6 xl:p-6">
       <section className="flex min-h-[92vh] flex-1 flex-col gap-3 md:gap-4">
         <Card className="sticky top-4 z-30 flex items-center justify-between rounded-2xl bg-[var(--surface)]/80 px-5 py-4">
           <div>
@@ -167,16 +170,24 @@ export function GymControlShell() {
           ))}
         </div>
 
-        <div className="hidden flex-wrap gap-2 lg:flex">
-          {allowedModules.map((moduleKey) => (
-            <Button
-              key={moduleKey}
-              variant={moduleKey === activeModule ? "secondary" : "ghost"}
-              onClick={() => setActiveModule(moduleKey)}
-            >
-              {moduleLabels[moduleKey]}
-            </Button>
-          ))}
+        <div className="hidden flex-wrap gap-2 md:flex">
+          {allowedModules.map((moduleKey) => {
+            const Icon = moduleIcons[moduleKey];
+            return (
+              <Button
+                key={moduleKey}
+                variant={moduleKey === activeModule ? "secondary" : "ghost"}
+                size="sm"
+                className="min-h-9 min-w-9 shrink-0 gap-2 px-2.5 lg:min-w-0 lg:px-3"
+                title={moduleLabels[moduleKey]}
+                aria-label={moduleLabels[moduleKey]}
+                onClick={() => setActiveModule(moduleKey)}
+              >
+                <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="hidden lg:inline">{moduleLabels[moduleKey]}</span>
+              </Button>
+            );
+          })}
         </div>
 
         <AnimatePresence mode="wait">
@@ -266,19 +277,43 @@ export function GymControlShell() {
         </div>
       ) : null}
 
-      <div className="fixed bottom-4 left-1/2 z-40 flex w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 p-2 backdrop-blur md:hidden">
-        {quickNav.map((moduleKey) => (
-          <button
-            key={`mobile-nav-${moduleKey}`}
-            className={`rounded-xl px-3 py-2 text-xs ${
-              activeModule === moduleKey ? "bg-[var(--primary)] text-white" : "text-[var(--muted)]"
-            }`}
-            onClick={() => setActiveModule(moduleKey)}
+      <nav
+        className="fixed bottom-4 left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-lg -translate-x-1/2 md:hidden"
+        aria-label="Módulos del gimnasio"
+      >
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/95 shadow-[0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-md">
+          <div
+            ref={mobileModuleNavRef}
+            className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto overscroll-x-contain px-2 py-2 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {moduleLabels[moduleKey].split(" ")[0]}
-          </button>
-        ))}
-      </div>
+            {allowedModules.map((moduleKey) => {
+              const Icon = moduleIcons[moduleKey];
+              const active = activeModule === moduleKey;
+              return (
+                <button
+                  key={`mobile-nav-${moduleKey}`}
+                  type="button"
+                  data-module-nav={moduleKey}
+                  title={moduleLabels[moduleKey]}
+                  aria-label={moduleLabels[moduleKey]}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex h-11 w-11 shrink-0 snap-center items-center justify-center rounded-xl transition-colors ${
+                    active ? "bg-[var(--primary)] text-white" : "text-[var(--muted)] hover:bg-white/5 hover:text-white"
+                  }`}
+                  onClick={() => setActiveModule(moduleKey)}
+                >
+                  <Icon className="h-5 w-5" aria-hidden />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {allowedModules.length > 5 ? (
+          <p className="mt-1.5 text-center text-[10px] uppercase tracking-wider text-[var(--muted)]">
+            Desliza para ver todos los módulos
+          </p>
+        ) : null}
+      </nav>
 
       <button
         className="fixed bottom-24 right-4 z-40 rounded-full bg-[var(--primary)] p-3 text-white shadow-lg md:hidden"

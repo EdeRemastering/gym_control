@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   CreateCommentDto,
+  CreateMediaCommentDto,
   CreateMediaPostDto,
   CreatePostDto,
 } from './dto/social.dto';
@@ -95,6 +96,39 @@ export class SocialService {
     });
   }
 
+  async likeMediaPost(gymId: string, mediaPostId: string, userId: string) {
+    await this.ensureUser(gymId, userId);
+    await this.ensureMediaPost(gymId, mediaPostId);
+    const existing = await this.prisma.mediaLike.findUnique({
+      where: { mediaPostId_userId: { mediaPostId, userId } },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.mediaLike.delete({ where: { id: existing.id } });
+    } else {
+      await this.prisma.mediaLike.create({ data: { mediaPostId, userId } });
+    }
+
+    const likeCount = await this.prisma.mediaLike.count({ where: { mediaPostId } });
+    return { mediaPostId, userId, isLiked: !existing, likeCount };
+  }
+
+  async createMediaComment(gymId: string, dto: CreateMediaCommentDto) {
+    await this.ensureUser(gymId, dto.userId);
+    await this.ensureMediaPost(gymId, dto.mediaPostId);
+    return this.prisma.mediaComment.create({ data: dto });
+  }
+
+  async listMediaComments(gymId: string, mediaPostId: string) {
+    await this.ensureMediaPost(gymId, mediaPostId);
+    return this.prisma.mediaComment.findMany({
+      where: { mediaPostId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
+    });
+  }
+
   private async ensureUser(gymId: string, userId: string) {
     const row = await this.prisma.user.findFirst({
       where: { id: userId, gymId, deletedAt: null },
@@ -108,5 +142,12 @@ export class SocialService {
       select: { id: true },
     });
     if (!row) throw new NotFoundException('Post not found');
+  }
+  private async ensureMediaPost(gymId: string, mediaPostId: string) {
+    const row = await this.prisma.mediaPost.findFirst({
+      where: { id: mediaPostId, gymId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('Media post not found');
   }
 }

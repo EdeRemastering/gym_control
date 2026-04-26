@@ -70,6 +70,14 @@ enum MediaType {
   @@map("media_type")
 }
 
+enum PostType {
+  PUBLICATION
+  ACHIEVEMENT
+  NUTRITION
+
+  @@map("post_type")
+}
+
 enum UserActivityType {
   CHECKIN
   MEMBERSHIP_STARTED
@@ -651,6 +659,7 @@ model Post {
   id       String   @id @default(cuid())
   gymId    String   @map("gym_id")
   userId   String   @map("user_id")
+  postType PostType @default(PUBLICATION) @map("post_type")
   content  String   @db.Text
   mediaUrl String?  @map("media_url")
 

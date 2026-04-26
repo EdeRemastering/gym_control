@@ -69,6 +69,36 @@ export class TrainingService {
       },
     });
   }
+  async listUserRoutines(gymId: string, userId: string) {
+    await this.ensureUser(gymId, userId);
+    return this.prisma.userRoutine.findMany({
+      where: { gymId, userId, deletedAt: null },
+      include: {
+        routine: {
+          select: {
+            id: true,
+            name: true,
+            exercises: {
+              select: {
+                id: true,
+                reps: true,
+                weight: true,
+                exercise: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+              orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 120,
+    });
+  }
   async createProgress(gymId: string, dto: CreateProgressDto) {
     await this.ensureUser(gymId, dto.userId);
     return this.prisma.progress.create({

@@ -78,7 +78,7 @@ async function bootstrap() {
   app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Gym Control API')
+    .setTitle('Zudel OS API')
     .setDescription('Backend API for multi-tenant gym management')
     .setVersion('1.0.0')
     .addBearerAuth()

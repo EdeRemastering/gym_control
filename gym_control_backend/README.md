@@ -1,4 +1,4 @@
-# Gym Control Backend
+# Zudel OS Backend
 
 A production-ready SaaS multi-tenant gym management system built with NestJS, Prisma, and PostgreSQL.
 

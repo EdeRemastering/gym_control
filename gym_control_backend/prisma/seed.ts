@@ -13,6 +13,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   PermissionScope,
+  PostType,
   Prisma,
   PrismaClient,
   UserActivityType,
@@ -68,7 +69,7 @@ async function main() {
 
   const gymA = await prisma.gym.create({
     data: {
-      name: 'Gym Control Downtown',
+      name: 'Zudel OS Downtown',
       email: 'downtown@gymcontrol.app',
       phone: '3001002000',
       address: 'Av. Central 101',
@@ -76,7 +77,7 @@ async function main() {
   });
   const gymB = await prisma.gym.create({
     data: {
-      name: 'Gym Control North',
+      name: 'Zudel OS North',
       email: 'north@gymcontrol.app',
       phone: '3001003000',
       address: 'Calle Norte 202',
@@ -288,26 +289,52 @@ async function main() {
   });
 
   const [routineA, routineB] = await prisma.$transaction([
-    prisma.routine.create({ data: { gymId: gymA.id, name: 'Fuerza A', description: 'Pierna y core' } }),
+    prisma.routine.create({
+      data: {
+        gymId: gymA.id,
+        name: 'Demo — Push (tren superior)',
+        description:
+          'Cinco ejercicios en orden para probar el módulo: pecho, espalda y brazos. Asignada al entrenador demo.',
+      },
+    }),
     prisma.routine.create({ data: { gymId: gymB.id, name: 'Cardio B', description: 'Resistencia' } }),
   ]);
 
-  const [exerciseA, exerciseB] = await prisma.$transaction([
-    prisma.exercise.create({ data: { gymId: gymA.id, name: 'Sentadilla', description: 'Barra libre' } }),
+  const exercisesGymA = await prisma.$transaction([
+    prisma.exercise.create({
+      data: { gymId: gymA.id, name: 'Press de banca', description: 'Pecho plano, control escapular' },
+    }),
+    prisma.exercise.create({
+      data: { gymId: gymA.id, name: 'Press inclinado con mancuernas', description: 'Pecho superior' },
+    }),
+    prisma.exercise.create({
+      data: { gymId: gymA.id, name: 'Remo con barra', description: 'Espalda, tracción horizontal' },
+    }),
+    prisma.exercise.create({
+      data: { gymId: gymA.id, name: 'Elevaciones laterales', description: 'Deltoide medio, codos altos' },
+    }),
+    prisma.exercise.create({
+      data: { gymId: gymA.id, name: 'Curl martillo', description: 'Bíceps, agarre neutro' },
+    }),
+  ]);
+
+  const exerciseA = exercisesGymA[0];
+
+  const [exerciseB] = await prisma.$transaction([
     prisma.exercise.create({ data: { gymId: gymB.id, name: 'Burpees', description: 'Peso corporal' } }),
   ]);
 
   await prisma.routineExercise.createMany({
     data: [
-      {
+      ...exercisesGymA.map((ex, i) => ({
         gymId: gymA.id,
         routineId: routineA.id,
-        exerciseId: exerciseA.id,
-        sets: 4,
-        reps: 10,
-        weight: new Prisma.Decimal(40),
-        position: 1,
-      },
+        exerciseId: ex.id,
+        sets: [4, 3, 4, 3, 3][i],
+        reps: [8, 10, 10, 15, 12][i],
+        weight: new Prisma.Decimal([70, 24, 50, 8, 14][i]),
+        position: i + 1,
+      })),
       {
         gymId: gymB.id,
         routineId: routineB.id,
@@ -366,7 +393,7 @@ async function main() {
         gymId: gymA.id,
         userId: userA2.id,
         createdBy: userA1.id,
-        name: 'Nutricion Fuerza',
+        name: 'Plan demo — 5 comidas estructuradas',
         startDate: new Date(),
       },
     }),
@@ -381,16 +408,55 @@ async function main() {
     }),
   ]);
 
-  const [mealA, mealB] = await prisma.$transaction([
+  const mealsGymA = await prisma.$transaction([
     prisma.meal.create({
       data: {
         nutritionPlanId: nutritionA.id,
         dayOfWeek: 1,
         mealType: MealType.BREAKFAST,
-        description: 'Avena y fruta',
+        description: 'Desayuno: avena, yogur y fruta',
         calories: 420,
       },
     }),
+    prisma.meal.create({
+      data: {
+        nutritionPlanId: nutritionA.id,
+        dayOfWeek: 1,
+        mealType: MealType.LUNCH,
+        description: 'Almuerzo: pollo, arroz y ensalada',
+        calories: 640,
+      },
+    }),
+    prisma.meal.create({
+      data: {
+        nutritionPlanId: nutritionA.id,
+        dayOfWeek: 1,
+        mealType: MealType.SNACK,
+        description: 'Snack: fruta y frutos secos',
+        calories: 220,
+      },
+    }),
+    prisma.meal.create({
+      data: {
+        nutritionPlanId: nutritionA.id,
+        dayOfWeek: 1,
+        mealType: MealType.DINNER,
+        description: 'Cena: salmón y verduras al vapor',
+        calories: 510,
+      },
+    }),
+    prisma.meal.create({
+      data: {
+        nutritionPlanId: nutritionA.id,
+        dayOfWeek: 3,
+        mealType: MealType.POST_WORKOUT,
+        description: 'Post-entreno: batido recuperación',
+        calories: 300,
+      },
+    }),
+  ]);
+
+  const [mealB] = await prisma.$transaction([
     prisma.meal.create({
       data: {
         nutritionPlanId: nutritionB.id,
@@ -402,7 +468,7 @@ async function main() {
     }),
   ]);
 
-  const [foodA, foodB] = await prisma.$transaction([
+  const foodsGymA = await prisma.$transaction([
     prisma.food.create({
       data: {
         gymId: gymA.id,
@@ -415,6 +481,51 @@ async function main() {
     }),
     prisma.food.create({
       data: {
+        gymId: gymA.id,
+        name: 'Yogur griego natural',
+        caloriesPer100g: 97,
+        proteinPer100g: new Prisma.Decimal(9.5),
+        carbsPer100g: new Prisma.Decimal(3.6),
+        fatPer100g: new Prisma.Decimal(5.0),
+      },
+    }),
+    prisma.food.create({
+      data: {
+        gymId: gymA.id,
+        name: 'Pechuga de pollo',
+        caloriesPer100g: 165,
+        proteinPer100g: new Prisma.Decimal(31.0),
+        carbsPer100g: new Prisma.Decimal(0),
+        fatPer100g: new Prisma.Decimal(3.6),
+      },
+    }),
+    prisma.food.create({
+      data: {
+        gymId: gymA.id,
+        name: 'Arroz basmati cocido',
+        caloriesPer100g: 130,
+        proteinPer100g: new Prisma.Decimal(2.7),
+        carbsPer100g: new Prisma.Decimal(28.0),
+        fatPer100g: new Prisma.Decimal(0.3),
+      },
+    }),
+    prisma.food.create({
+      data: {
+        gymId: gymA.id,
+        name: 'Salmón',
+        caloriesPer100g: 208,
+        proteinPer100g: new Prisma.Decimal(20.4),
+        carbsPer100g: new Prisma.Decimal(0),
+        fatPer100g: new Prisma.Decimal(13.4),
+      },
+    }),
+  ]);
+
+  const [foodA, foodYogur, foodPollo, foodArroz, foodSalmon] = foodsGymA;
+
+  const [foodB] = await prisma.$transaction([
+    prisma.food.create({
+      data: {
         gymId: gymB.id,
         name: 'Pechuga de pollo',
         caloriesPer100g: 165,
@@ -425,9 +536,18 @@ async function main() {
     }),
   ]);
 
+  const [mealA0, mealA1, mealA2, mealA3, mealA4] = mealsGymA;
+
   await prisma.mealFood.createMany({
     data: [
-      { mealId: mealA.id, foodId: foodA.id, quantity: 80, unit: MealFoodUnit.g },
+      { mealId: mealA0.id, foodId: foodA.id, quantity: 60, unit: MealFoodUnit.g },
+      { mealId: mealA0.id, foodId: foodYogur.id, quantity: 150, unit: MealFoodUnit.g },
+      { mealId: mealA1.id, foodId: foodPollo.id, quantity: 180, unit: MealFoodUnit.g },
+      { mealId: mealA1.id, foodId: foodArroz.id, quantity: 200, unit: MealFoodUnit.g },
+      { mealId: mealA2.id, foodId: foodA.id, quantity: 40, unit: MealFoodUnit.g },
+      { mealId: mealA3.id, foodId: foodSalmon.id, quantity: 160, unit: MealFoodUnit.g },
+      { mealId: mealA4.id, foodId: foodYogur.id, quantity: 200, unit: MealFoodUnit.g },
+      { mealId: mealA4.id, foodId: foodPollo.id, quantity: 80, unit: MealFoodUnit.g },
       { mealId: mealB.id, foodId: foodB.id, quantity: 150, unit: MealFoodUnit.g },
     ],
   });
@@ -440,8 +560,12 @@ async function main() {
   });
 
   const [postA, postB] = await prisma.$transaction([
-    prisma.post.create({ data: { gymId: gymA.id, userId: userA2.id, content: 'Entreno completado hoy!' } }),
-    prisma.post.create({ data: { gymId: gymB.id, userId: userB2.id, content: 'Nueva marca personal' } }),
+    prisma.post.create({
+      data: { gymId: gymA.id, userId: userA2.id, postType: PostType.NUTRITION, content: 'Entreno completado hoy!' },
+    }),
+    prisma.post.create({
+      data: { gymId: gymB.id, userId: userB2.id, postType: PostType.ACHIEVEMENT, content: 'Nueva marca personal' },
+    }),
   ]);
 
   const commentA = await prisma.comment.create({

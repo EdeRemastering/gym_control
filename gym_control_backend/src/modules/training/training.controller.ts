@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { PermissionScope } from '@prisma/client';
 import { Permission, Scope } from '../rbac/rbac.decorators';
 import { TrainingService } from './training.service';
@@ -68,6 +68,16 @@ export class TrainingController {
   @Scope(PermissionScope.GYM)
   assignRoutine(@Param('gymId') gymId: string, @Body() dto: AssignRoutineDto) {
     return this.trainingService.assignRoutine(gymId, dto);
+  }
+
+  @Get('user-routines')
+  @Permission('user_routine:read')
+  @Scope(PermissionScope.OWN)
+  listUserRoutines(
+    @Param('gymId') gymId: string,
+    @Query('userId') userId: string,
+  ) {
+    return this.trainingService.listUserRoutines(gymId, userId);
   }
 
   @Post('progress')

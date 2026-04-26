@@ -1,4 +1,4 @@
-# Supabase + Prisma Setup (Gym Control)
+# Supabase + Prisma Setup (Zudel OS)
 
 ## 1) Crear proyecto en Supabase
 

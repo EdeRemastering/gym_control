@@ -248,6 +248,47 @@ export class RbacService {
     });
   }
 
+  async listRolesByGym(gymId: string) {
+    return this.prisma.role.findMany({
+      where: { gymId },
+      orderBy: [{ name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+    });
+  }
+
+  async listPermissionsByRole(roleId: string) {
+    const rows = await this.prisma.rolePermission.findMany({
+      where: { roleId },
+      select: {
+        roleId: true,
+        permissionId: true,
+        permission: {
+          select: {
+            id: true,
+            resource: true,
+            action: true,
+            scope: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: [
+        { permission: { resource: 'asc' } },
+        { permission: { action: 'asc' } },
+      ],
+    });
+
+    return rows.map((row) => ({
+      roleId: row.roleId,
+      permissionId: row.permissionId,
+      permission: row.permission,
+    }));
+  }
+
   async assignPermissionToRole(roleId: string, permissionId: string) {
     const result = await this.prisma.rolePermission.create({
       data: { roleId, permissionId },
@@ -268,6 +309,29 @@ export class RbacService {
   async getAllPermissions() {
     return this.prisma.permission.findMany({
       orderBy: [{ resource: 'asc' }, { action: 'asc' }, { scope: 'asc' }],
+      select: {
+        id: true,
+        resource: true,
+        action: true,
+        scope: true,
+        name: true,
+      },
+    });
+  }
+
+  async createPermission(
+    name: string,
+    resource: string,
+    action: string,
+    scope: PermissionScope,
+  ) {
+    return this.prisma.permission.create({
+      data: {
+        name,
+        resource: resource.toLowerCase(),
+        action: action.toLowerCase(),
+        scope,
+      },
       select: {
         id: true,
         resource: true,
